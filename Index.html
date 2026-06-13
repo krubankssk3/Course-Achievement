@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ระบบบันทึก ปพ.5 / ปพ.6 ออนไลน์ — โรงเรียนบ้านละลม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --ink: #16314E; --primary: #245C8C; --primary-dark: #1B4A73; --primary-soft: #E9F1F8;
+    --gold: #C7A04A; --bg: #F4F6F9; --surface: #FFFFFF; --border: #E1E6EC;
+    --text: #2A3340; --muted: #6B7785; --ok: #2E7D52; --ok-soft: #E6F2EC;
+    --warn: #C0492E; --warn-soft: #FBEAE6; --radius: 12px;
+    --shadow: 0 1px 2px rgba(22,49,78,.06), 0 8px 24px rgba(22,49,78,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: 'Kanit', sans-serif; font-weight: 600; color: var(--ink); }
+  a { color: var(--primary); }
+  :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+
+  .view { display: none; min-height: 100vh; flex-direction: column; }
+  .view.active { display: flex; }
+
+  .btn { font-family: 'Kanit', sans-serif; font-size: 15px; font-weight: 500; border: 1px solid transparent; border-radius: 10px; padding: 11px 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background .15s ease, border-color .15s ease, transform .05s ease; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-light { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.25); }
+  .btn-light:hover { background: rgba(255,255,255,.2); }
+  .btn-block { width: 100%; justify-content: center; }
+  .gold-rule { height: 3px; background: linear-gradient(90deg, var(--gold), transparent); border: none; margin: 0; }
+
+  /* PUBLIC */
+  .pub-top { background: linear-gradient(160deg, var(--ink), var(--primary-dark)); color: #fff; position: relative; overflow: hidden; }
+  .pub-top::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; }
+  .pub-nav { max-width: 1080px; margin: 0 auto; padding: 18px 24px; display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+  .pub-nav img { width: 44px; height: 44px; object-fit: contain; background:#fff; border-radius: 50%; padding: 3px; }
+  .pub-nav .brand { font-family: 'Kanit', sans-serif; font-weight: 600; color: #fff; line-height: 1.25; }
+  .pub-nav .brand small { display:block; font-weight: 400; font-size: 12.5px; color: rgba(255,255,255,.7); }
+  .pub-nav .spacer { flex: 1; }
+  .hero { max-width: 1080px; margin: 0 auto; padding: 40px 24px 64px; position: relative; z-index: 1; }
+  .hero .eyebrow { font-family:'Kanit',sans-serif; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .hero h1 { color: #fff; font-size: clamp(28px, 5vw, 46px); line-height: 1.18; margin: 0 0 18px; max-width: 16ch; }
+  .hero p { color: rgba(255,255,255,.78); font-size: 17px; max-width: 52ch; margin: 0 0 30px; }
+  .gate-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1080px; }
+  .gate { background: var(--surface); border-radius: var(--radius); padding: 26px; box-shadow: var(--shadow); border-top: 3px solid var(--gold); display: flex; flex-direction: column; }
+  .gate i { font-size: 30px; color: var(--primary); }
+  .gate h3 { margin: 14px 0 6px; font-size: 19px; }
+  .gate p { color: var(--muted); font-size: 14.5px; margin: 0 0 20px; flex: 1; }
+  .pub-body { max-width: 1080px; margin: 0 auto; padding: 48px 24px; flex: 1; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .feature i { font-size: 24px; color: var(--gold); }
+  .feature h4 { font-family:'Kanit',sans-serif; margin: 12px 0 6px; color: var(--ink); font-size: 16px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* การ์ดฟอร์มกลางจอ */
+  .center-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; background: var(--bg); }
+  .card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-width: 420px; overflow: hidden; }
+  .card-head { padding: 26px 30px 6px; text-align: center; }
+  .card-head img { width: 56px; height: 56px; object-fit: contain; margin-bottom: 10px; }
+  .card-head h2 { margin: 0; font-size: 21px; }
+  .card-head p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+  .card-body { padding: 22px 30px 30px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-family:'Kanit',sans-serif; font-size: 14px; color: var(--ink); margin-bottom: 6px; }
+  .field input, .field select { width: 100%; padding: 11px 13px; font-family: 'Sarabun', sans-serif; font-size: 15px; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text); }
+  .field input:focus, .field select:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-soft); }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .alert { padding: 11px 14px; border-radius: 10px; font-size: 14px; margin-bottom: 16px; display: none; }
+  .alert.show { display: block; }
+  .alert-error { background: var(--warn-soft); color: var(--warn); }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin-top: 16px; text-decoration: none; cursor: pointer; }
+  .demo-note { background: #FFF8E6; border: 1px dashed var(--gold); color: #7a5d12; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 14px; }
+  .demo-note b { color: #5e4709; }
+
+  /* เอกสาร ปพ.6 */
+  .doc-screen { flex: 1; background: var(--bg); padding: 28px 16px 60px; }
+  .doc-toolbar { max-width: 820px; margin: 0 auto 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .doc-toolbar .spacer { flex: 1; }
+  .rp-sel { display: flex; gap: 8px; }
+  .doc-sel { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-family: 'Sarabun', sans-serif; font-size: 14px; background: #fff; color: var(--text); }
+  .paper { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 6px; box-shadow: 0 4px 30px rgba(22,49,78,.12); overflow: hidden; border: 1px solid var(--border); }
+  .paper-head { text-align: center; padding: 30px 40px 0; }
+  .paper-head img { width: 64px; height: 64px; object-fit: contain; }
+  .paper-head h2 { font-size: 20px; margin: 10px 0 2px; }
+  .paper-head .sub { color: var(--muted); font-size: 14px; }
+  .paper-head .doc-type { display: inline-block; margin-top: 14px; font-family:'Kanit',sans-serif; background: var(--primary-soft); color: var(--primary); padding: 5px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; }
+  .paper-inner { padding: 22px 40px 36px; }
+  .stu-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin: 18px 0 24px; font-size: 15px; }
+  .stu-meta div span { color: var(--muted); }
+  table.grades { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  table.grades th, table.grades td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.grades th { font-family:'Kanit',sans-serif; font-weight: 500; color: var(--ink); background: #FAFBFC; font-size: 13.5px; }
+  table.grades td.num, table.grades th.num { text-align: center; }
+  table.grades tfoot td { font-family:'Kanit',sans-serif; font-weight: 600; color: var(--ink); border-top: 2px solid var(--ink); border-bottom: none; }
+  .summary-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 26px 0 8px; }
+  .sum-box { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+  .sum-box .k { font-size: 13px; color: var(--muted); }
+  .sum-box .v { font-family:'Kanit',sans-serif; font-size: 26px; font-weight: 600; color: var(--primary); }
+  .assess-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin-top: 18px; font-size: 14.5px; }
+  .assess-grid .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dotted var(--border); }
+  .pass { color: var(--ok); font-weight: 600; }
+  .doc-empty { padding: 70px 20px; text-align: center; color: var(--muted); }
+  .doc-empty i { font-size: 46px; color: var(--border); }
+  .doc-empty p { margin: 12px 0 0; }
+
+  /* ADMIN */
+  .admin { flex: 1; display: flex; flex-direction: column; }
+  .admin-top { background: var(--ink); color: #fff; display: flex; align-items: center; gap: 12px; padding: 12px 22px; flex-wrap: wrap; }
+  .admin-top img { width: 34px; height: 34px; background:#fff; border-radius: 50%; padding: 2px; }
+  .admin-top .t { font-family:'Kanit',sans-serif; font-weight: 600; font-size: 16px; }
+  .admin-top .t small { display:block; font-weight: 400; font-size: 12px; color: rgba(255,255,255,.65); }
+  .admin-top .spacer { flex: 1; }
+  .admin-top .who { font-size: 14px; color: rgba(255,255,255,.85); }
+  .year-select { background: rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:10px; padding:9px 12px; font-family:'Kanit',sans-serif; font-size:14px; cursor:pointer; }
+  .year-select option { color:#222; }
+  .theme-quick { position: relative; }
+  .theme-menu { display:none; position:absolute; right:0; top:48px; z-index:30; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:8px; min-width:190px; }
+  .theme-menu.open { display:block; }
+  .theme-menu button { display:flex; align-items:center; gap:10px; width:100%; border:none; background:none; padding:9px 10px; border-radius:8px; cursor:pointer; font-family:'Kanit',sans-serif; font-size:14px; color:var(--text); text-align:left; }
+  .theme-menu button:hover { background:var(--bg); }
+  .theme-menu .dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
+
+  .admin-body { flex: 1; display: flex; }
+  .side { width: 230px; background: var(--surface); border-right: 1px solid var(--border); padding: 16px 12px; flex-shrink: 0; }
+  .side a { display: flex; align-items: center; gap: 11px; padding: 11px 14px; border-radius: 10px; color: var(--text); text-decoration: none; font-family:'Kanit',sans-serif; font-size: 15px; cursor: pointer; margin-bottom: 3px; }
+  .side a i { font-size: 19px; color: var(--muted); }
+  .side a:hover { background: var(--bg); }
+  .side a.active { background: var(--primary-soft); color: var(--primary); }
+  .side a.active i { color: var(--primary); }
+
+  .content { flex: 1; padding: 28px 32px; overflow: auto; }
+  .page-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px; }
+  .page-title h2 { margin: 0; font-size: 23px; }
+  .page-title p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; border-left: 3px solid var(--primary); }
+  .stat .ic { font-size: 22px; color: var(--primary); }
+  .stat .num { font-family:'Kanit',sans-serif; font-size: 30px; font-weight: 600; color: var(--ink); line-height: 1.1; margin-top: 8px; }
+  .stat .lab { color: var(--muted); font-size: 14px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 22px; }
+  .panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .panel-head h3 { margin: 0; font-size: 16px; }
+  .panel-body { padding: 6px 0; }
+  table.data { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  table.data th, table.data td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.data th { font-family:'Kanit',sans-serif; font-weight: 500; font-size: 13.5px; color: var(--muted); background: #FAFBFC; }
+  table.data tr:last-child td { border-bottom: none; }
+  table.data td.num, table.data th.num { text-align: center; }
+  table.data input.score { width: 70px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-family: 'Sarabun', sans-serif; font-size: 14px; }
+  table.data input.score:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-soft); }
+  .pill { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 13px; font-family:'Kanit',sans-serif; }
+  .pill-ok { background: var(--ok-soft); color: var(--ok); }
+  .pill-grade { background: var(--primary-soft); color: var(--primary); font-weight: 500; }
+  .pill-sys { background:#EEF1F5; color: var(--muted); }
+  .selectors { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+  .selectors .field { margin-bottom: 0; min-width: 180px; }
+  .empty { text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty i { font-size:40px; color:var(--border); }
+  .empty p { margin:10px 0 0; }
+
+  /* เลือกโทนสี */
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 14px; }
+  .swatch { border: 2px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; background: var(--surface); text-align: left; font-family:'Kanit',sans-serif; display:flex; align-items:center; gap:12px; transition: border-color .15s ease, box-shadow .15s ease; }
+  .swatch:hover { border-color: var(--muted); }
+  .swatch.active { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .swatch .dots { display:flex; gap:5px; flex-shrink:0; }
+  .swatch .dot { width:20px; height:20px; border-radius:50%; }
+  .swatch .lab { font-size:15px; color:var(--ink); font-weight:500; }
+  .swatch .lab small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
+
+  /* การ์ดผู้พัฒนา */
+  .dev-card { background: linear-gradient(160deg, var(--ink), var(--primary-dark)); color:#fff; border-radius:16px; padding:30px; display:flex; gap:22px; align-items:center; flex-wrap:wrap; }
+  .dev-card .avatar { width:84px; height:84px; border-radius:50%; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; font-size:40px; flex-shrink:0; border:2px solid var(--gold); color:#fff; }
+  .dev-card h3 { color:#fff; margin:0 0 4px; font-size:22px; }
+  .dev-card .role { color:rgba(255,255,255,.82); font-size:15px; }
+  .dev-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:20px; }
+  .dev-meta .item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .dev-meta .item i { color:var(--primary); font-size:20px; }
+  .dev-meta .item .k { font-size:13px; color:var(--muted); margin-top:6px; }
+  .dev-meta .item .v { font-family:'Kanit',sans-serif; color:var(--ink); font-size:15px; }
+
+  footer.app-foot { text-align: center; padding: 18px; font-size: 13px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
+  .pub-foot { background: var(--ink); color: rgba(255,255,255,.6); text-align: center; padding: 20px; font-size: 13px; }
+
+  @media (max-width: 820px) {
+    .gate-cards, .feature-grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .summary-strip, .assess-grid, .stu-meta { grid-template-columns: 1fr; }
+    .admin-body { flex-direction: column; }
+    .side { width: auto; display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .side a { white-space: nowrap; margin-bottom: 0; }
+    .content { padding: 20px 16px; }
+    .paper-inner, .paper-head { padding-left: 20px; padding-right: 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media print { .doc-toolbar, .pub-foot, footer.app-foot { display: none; } body { background: #fff; } .paper { box-shadow: none; border: none; max-width: 100%; } }
+</style>
+</head>
+<body>
+
+<!-- ============ PUBLIC ============ -->
+<section id="view-public" class="view active">
+  <div class="pub-top">
+    <nav class="pub-nav">
+      <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
+      <div class="brand">ระบบบันทึก ปพ.5 / ปพ.6<small>โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</small></div>
+      <div class="spacer"></div>
+      <button class="btn btn-light" onclick="go('admin-login')"><i class="ti ti-lock"></i> เข้าสู่ระบบครู</button>
+    </nav>
+    <hr class="gold-rule" />
+    <div class="hero">
+      <div class="eyebrow">จัดเก็บทุกปีการศึกษา</div>
+      <h1>บันทึกและออกเอกสารผลการเรียนได้ในที่เดียว</h1>
+      <p>รองรับทั้งระดับประถม (ผลการเรียนรวมทั้งปี) และมัธยม (แยกภาคเรียนที่ 1 และ 2 พร้อมหน่วยกิตและ GPAX) ระบบจัดเก็บข้อมูลย้อนหลังทุกปีการศึกษาและออกรายงาน ปพ.6 รายบุคคลให้อัตโนมัติ</p>
+      <div class="gate-cards">
+        <div class="gate">
+          <i class="ti ti-user-search"></i>
+          <h3>สำหรับนักเรียน</h3>
+          <p>ตรวจสอบผลการเรียน (ปพ.6) ย้อนหลังได้ทุกปีการศึกษา ยืนยันตัวตนด้วยเลขบัตรประชาชนและวันเกิด</p>
+          <button class="btn btn-primary btn-block" onclick="go('student-login')"><i class="ti ti-school"></i> ดูผลการเรียน</button>
+        </div>
+        <div class="gate">
+          <i class="ti ti-shield-lock"></i>
+          <h3>สำหรับครูและผู้ดูแลระบบ</h3>
+          <p>บันทึก ปพ.5 รายวิชา จัดการข้อมูลนักเรียนและห้องเรียน ออกรายงาน ปพ.6 โดยเห็นเฉพาะชั้นที่รับผิดชอบ</p>
+          <button class="btn btn-ghost btn-block" onclick="go('admin-login')"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pub-body">
+    <div class="feature-grid">
+      <div class="feature"><i class="ti ti-calendar-stats"></i><h4>จัดเก็บทุกปีการศึกษา</h4><p>ข้อมูลทุกปีอยู่ในระบบเดียว ค้นย้อนหลังและเปรียบเทียบได้ ไม่ต้องแยกไฟล์รายปี</p></div>
+      <div class="feature"><i class="ti ti-school"></i><h4>รองรับประถมและมัธยม</h4><p>ประถมใช้เกรดทั้งปี มัธยมแยกภาคเรียนพร้อมหน่วยกิตและ GPAX สะสม ระบบเลือกรูปแบบให้อัตโนมัติ</p></div>
+      <div class="feature"><i class="ti ti-lock-check"></i><h4>ปลอดภัยตาม PDPA</h4><p>นักเรียนเห็นเฉพาะข้อมูลของตน ครูเห็นเฉพาะชั้นที่รับผิดชอบ ควบคุมสิทธิ์ทุกระดับ</p></div>
+    </div>
+  </div>
+  <footer class="pub-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
+</section>
+
+<!-- ============ นักเรียนเข้าดูผล ============ -->
+<section id="view-student-login" class="view">
+  <div class="center-wrap">
+    <div class="card">
+      <div class="card-head">
+        <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
+        <h2>ตรวจสอบผลการเรียน</h2>
+        <p>ยืนยันตัวตนเพื่อดูรายงาน ปพ.6</p>
+      </div>
+      <div class="card-body">
+        <div id="stu-alert" class="alert alert-error">เลขบัตรประชาชนหรือวันเกิดไม่ถูกต้อง</div>
+        <div class="field">
+          <label for="stu-id">เลขบัตรประชาชน (13 หลัก)</label>
+          <input id="stu-id" type="text" inputmode="numeric" maxlength="13" placeholder="เช่น 1234567890123" />
+        </div>
+        <div class="field">
+          <label for="stu-dob">วันเกิด</label>
+          <input id="stu-dob" type="date" />
+          <div class="hint">ใช้คู่กับเลขบัตรเพื่อความปลอดภัย ป้องกันการสุ่มดูข้อมูลผู้อื่น</div>
+        </div>
+        <div class="field">
+          <label for="stu-year">ปีการศึกษาที่ต้องการดู</label>
+          <select id="stu-year"></select>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="studentLogin()"><i class="ti ti-search"></i> ดูผลการเรียน</button>
+        <div class="demo-note">
+          <b>ข้อมูลทดสอบ (prototype):</b><br />
+          <b>มัธยม</b> — เลขบัตร <b>1234567890123</b> · วันเกิด <b>10/05/2555</b> (ด.ช.ธนกร ม.1/1)<br />
+          <b>ประถม</b> — เลขบัตร <b>5678901234567</b> · วันเกิด <b>12/03/2557</b> (ด.ช.กิตติพงษ์ ป.6/1)
+        </div>
+        <a class="back-link" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</a>
+      </div>
+    </div>
+  </div>
+  <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
+</section>
+
+<!-- ============ รายงาน ปพ.6 ============ -->
+<section id="view-student-result" class="view">
+  <div class="doc-screen">
+    <div class="doc-toolbar">
+      <button class="btn btn-ghost" onclick="backFromReport()"><i class="ti ti-arrow-left"></i> ออก</button>
+      <div id="report-selectors" class="rp-sel"></div>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="window.print()"><i class="ti ti-printer"></i> พิมพ์ / บันทึก PDF</button>
+    </div>
+    <div class="paper" id="report-paper"></div>
+  </div>
+</section>
+
+<!-- ============ ล็อกอินแอดมิน ============ -->
+<section id="view-admin-login" class="view">
+  <div class="center-wrap">
+    <div class="card">
+      <div class="card-head">
+        <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
+        <h2>เข้าสู่ระบบ</h2>
+        <p>สำหรับครูและผู้ดูแลระบบ</p>
+      </div>
+      <div class="card-body">
+        <div id="adm-alert" class="alert alert-error">อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>
+        <div class="field"><label for="adm-email">อีเมล</label><input id="adm-email" type="email" placeholder="admin@banlalom.ac.th" /></div>
+        <div class="field"><label for="adm-pass">รหัสผ่าน</label><input id="adm-pass" type="password" placeholder="••••••••" /></div>
+        <button class="btn btn-primary btn-block" onclick="adminLogin()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
+        <div class="demo-note">ใช้อีเมลและรหัสผ่านของบัญชีครูที่สร้างไว้ใน Firebase Authentication</div>
+        <a class="back-link" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</a>
+      </div>
+    </div>
+  </div>
+  <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
+</section>
+
+<!-- ============ ADMIN ============ -->
+<section id="view-admin" class="view">
+  <div class="admin">
+    <div class="admin-top">
+      <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
+      <div class="t">ระบบบันทึก ปพ.5 / ปพ.6<small>โรงเรียนบ้านละลม</small></div>
+      <div class="spacer"></div>
+      <select class="year-select" id="year-select" onchange="onYearChange()"></select>
+      <span class="who"><i class="ti ti-user-circle"></i> ครูแบงค์</span>
+      <div class="theme-quick">
+        <button class="btn btn-light" onclick="toggleThemeMenu(event)" aria-haspopup="true"><i class="ti ti-palette"></i> โทนสี</button>
+        <div class="theme-menu" id="theme-menu"></div>
+      </div>
+      <button class="btn btn-light" onclick="logout()"><i class="ti ti-logout"></i> ออกจากระบบ</button>
+    </div>
+    <div class="admin-body">
+      <nav class="side">
+        <a class="nav-link active" data-pane="dashboard" onclick="showPane('dashboard', this)"><i class="ti ti-layout-dashboard"></i> ภาพรวม</a>
+        <a class="nav-link" data-pane="students" onclick="showPane('students', this)"><i class="ti ti-users"></i> ข้อมูลนักเรียน</a>
+        <a class="nav-link" data-pane="pp5" onclick="showPane('pp5', this)"><i class="ti ti-clipboard-text"></i> บันทึก ปพ.5</a>
+        <a class="nav-link" data-pane="pp6" onclick="showPane('pp6', this)"><i class="ti ti-file-certificate"></i> ออก ปพ.6</a>
+        <a class="nav-link" data-pane="theme" onclick="showPane('theme', this)"><i class="ti ti-palette"></i> ตั้งค่าโทนสี</a>
+        <a class="nav-link" data-pane="developer" onclick="showPane('developer', this)"><i class="ti ti-code"></i> ผู้พัฒนา</a>
+      </nav>
+      <main class="content">
+
+        <!-- ภาพรวม -->
+        <section class="pane active" id="pane-dashboard">
+          <div class="page-title"><div><h2>ภาพรวมระบบ</h2><p id="dash-sub">ปีการศึกษา 2568</p></div></div>
+          <div class="stat-grid">
+            <div class="stat"><div class="ic"><i class="ti ti-users"></i></div><div class="num" id="st-students">0</div><div class="lab">นักเรียนทั้งหมด</div></div>
+            <div class="stat"><div class="ic"><i class="ti ti-door"></i></div><div class="num" id="st-classes">0</div><div class="lab">ห้องเรียน</div></div>
+            <div class="stat"><div class="ic"><i class="ti ti-calendar"></i></div><div class="num" id="st-years">0</div><div class="lab">ปีการศึกษาที่จัดเก็บ</div></div>
+            <div class="stat"><div class="ic"><i class="ti ti-book"></i></div><div class="num" id="st-subjects">0</div><div class="lab">รายวิชา</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>ห้องเรียนในระบบ</h3><span class="pill pill-ok">เห็นเฉพาะชั้นที่รับผิดชอบ</span></div>
+            <div class="panel-body"><div id="dash-classes"></div></div>
+          </div>
+        </section>
+
+        <!-- ข้อมูลนักเรียน -->
+        <section class="pane" id="pane-students">
+          <div class="page-title"><div><h2>ข้อมูลนักเรียน</h2><p>ในระบบจริงครูจะเห็นเฉพาะห้องที่รับผิดชอบ</p></div>
+            <button class="btn btn-primary"><i class="ti ti-plus"></i> เพิ่มนักเรียน</button></div>
+          <div class="selectors">
+            <div class="field"><label>ห้องเรียน</label><select id="stu-class" onchange="renderStudents()"></select></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3 id="stu-title">รายชื่อนักเรียน</h3></div>
+            <div class="panel-body"><div id="student-table"></div></div>
+          </div>
+        </section>
+
+        <!-- บันทึก ปพ.5 -->
+        <section class="pane" id="pane-pp5">
+          <div class="page-title"><div><h2>บันทึก ปพ.5</h2><p>กรอกคะแนนและผลการประเมินรายวิชา</p></div></div>
+          <div class="selectors">
+            <div class="field"><label>ห้องเรียน</label><select id="pp5-class" onchange="onPp5ClassChange()"></select></div>
+            <div class="field"><label>รายวิชา</label><select id="pp5-subject" onchange="renderPp5()"></select></div>
+            <div class="field" id="pp5-term-wrap"><label>ภาคเรียน</label><select id="pp5-term" onchange="renderPp5()"><option value="1">ภาคเรียนที่ 1</option><option value="2">ภาคเรียนที่ 2</option></select></div>
+            <button class="btn btn-primary" onclick="savePp5()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3 id="pp5-title">คะแนน</h3><span class="pill pill-ok" id="pp5-scale">เต็ม 100 คะแนน</span></div>
+            <div class="panel-body"><div id="pp5-table"></div></div>
+          </div>
+        </section>
+
+        <!-- ออก ปพ.6 -->
+        <section class="pane" id="pane-pp6">
+          <div class="page-title"><div><h2>ออก ปพ.6</h2><p>ระบบรวมผลทุกรายวิชาและคำนวณผลการเรียนให้อัตโนมัติ</p></div></div>
+          <div class="selectors">
+            <div class="field"><label>ห้องเรียน</label><select id="pp6-class" onchange="renderPp6()"></select></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3></div>
+            <div class="panel-body"><div id="pp6-table"></div></div>
+          </div>
+        </section>
+
+        <!-- ตั้งค่าโทนสี -->
+        <section class="pane" id="pane-theme">
+          <div class="page-title"><div><h2>ตั้งค่าโทนสี</h2><p>เลือกโทนสีของระบบ มีผลทันทีทั้งหน้าผู้ใช้ หน้าผู้ดูแล และเอกสาร ปพ.6</p></div></div>
+          <div class="panel">
+            <div class="panel-head"><h3>เลือกธีมสี</h3><span class="pill pill-ok">เปลี่ยนได้ทันที</span></div>
+            <div class="panel-body" style="padding:20px"><div class="swatch-grid" id="swatch-grid"></div></div>
+          </div>
+        </section>
+
+        <!-- ผู้พัฒนา -->
+        <section class="pane" id="pane-developer">
+          <div class="page-title"><div><h2>ผู้พัฒนาระบบ</h2><p>ข้อมูลผู้พัฒนาและรายละเอียดระบบ</p></div></div>
+          <div class="dev-card">
+            <div class="avatar"><i class="ti ti-user"></i></div>
+            <div><h3>นายชิติพัทธ์ นิลวรรณ (ครูแบงค์)</h3><div class="role">ตำแหน่ง ครู · โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</div></div>
+          </div>
+          <div class="dev-meta">
+            <div class="item"><i class="ti ti-brand-github"></i><div class="k">GitHub</div><div class="v">krubankssk3</div></div>
+            <div class="item"><i class="ti ti-stack-2"></i><div class="k">สถาปัตยกรรม</div><div class="v">Firebase + GitHub Pages</div></div>
+            <div class="item"><i class="ti ti-versions"></i><div class="k">เวอร์ชันระบบ</div><div class="v">1.0 (prototype)</div></div>
+            <div class="item"><i class="ti ti-file-text"></i><div class="k">มาตรฐานเอกสาร</div><div class="v">ปพ.5 / ปพ.6 · หลักสูตรแกนกลาง 2551</div></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+    <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
+  </div>
+</section>
+
+<script>
+/* ============================================================
+   ข้อมูลจำลอง — ในระบบจริงมาจาก Firestore
+   โครงสร้าง: ปีการศึกษา -> ห้อง -> (มัธยม: ภาคเรียน 1/2) / (ประถม: ทั้งปี)
+   ============================================================ */
+var SCHOOL = { name: "โรงเรียนบ้านละลม", area: "สพป.ศรีสะเกษ เขต 3" };
+var YEARS = ["2568", "2567", "2566"];     /* จัดเก็บย้อนหลังทุกปี */
+var DATA_YEAR = "2568";                    /* prototype มีข้อมูลจริงเฉพาะปีนี้ */
+var CURRENT_YEAR = "2568";
+
+var CLASSES = [
+  { id: "m1-1", name: "ม.1/1", level: "มัธยมศึกษาปีที่ 1/1", system: "secondary" },
+  { id: "p6-1", name: "ป.6/1", level: "ประถมศึกษาปีที่ 6/1", system: "primary" }
+];
+
+var SUBJECTS = {
+  secondary: [
+    { code:"ท21101", name:"ภาษาไทย",          credit:1.5, hours:3 },
+    { code:"ค21101", name:"คณิตศาสตร์",        credit:1.5, hours:3 },
+    { code:"ว21101", name:"วิทยาศาสตร์",       credit:1.5, hours:3 },
+    { code:"ส21101", name:"สังคมศึกษา",        credit:1.5, hours:3 },
+    { code:"อ21101", name:"ภาษาอังกฤษ",        credit:1.5, hours:3 },
+    { code:"พ21101", name:"สุขศึกษาและพลศึกษา", credit:1.0, hours:2 },
+    { code:"ศ21101", name:"ศิลปะ",             credit:1.0, hours:2 },
+    { code:"ง21101", name:"การงานอาชีพ",       credit:1.0, hours:2 }
+  ],
+  primary: [
+    { code:"ท16101", name:"ภาษาไทย",          hours:5 },
+    { code:"ค16101", name:"คณิตศาสตร์",        hours:5 },
+    { code:"ว16101", name:"วิทยาศาสตร์",       hours:3 },
+    { code:"ส16101", name:"สังคมศึกษา",        hours:3 },
+    { code:"อ16101", name:"ภาษาอังกฤษ",        hours:3 },
+    { code:"พ16101", name:"สุขศึกษาและพลศึกษา", hours:2 },
+    { code:"ศ16101", name:"ศิลปะ",             hours:2 },
+    { code:"ง16101", name:"การงานอาชีพ",       hours:2 }
+  ]
+};
+
+/* นักเรียนของปี 2568 — มัธยม: terms{1,2}.s[code]=[เก็บ,กลางภาค,ปลายภาค] ; ประถม: y[code]=คะแนนรวมทั้งปี */
+var ROSTER = {
+  "m1-1": [
+    { no:1, name:"เด็กชายธนกร ใจดี", sid:"12345", cid:"1234567890123", dob:"2555-05-10",
+      terms:{
+        "1":{ read:"ดี", char:"ดีเยี่ยม", comp:"ผ่าน",
+              s:{ "ท21101":[52,17,18],"ค21101":[55,18,19],"ว21101":[48,15,16],"ส21101":[50,17,17],"อ21101":[40,13,14],"พ21101":[56,18,18],"ศ21101":[51,16,17],"ง21101":[49,16,16] } },
+        "2":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
+              s:{ "ท21101":[54,18,18],"ค21101":[57,19,19],"ว21101":[50,16,17],"ส21101":[52,17,18],"อ21101":[44,14,15],"พ21101":[57,18,19],"ศ21101":[53,17,17],"ง21101":[51,17,17] } }
+      } },
+    { no:2, name:"เด็กหญิงปุณยาพร แก้วใส", sid:"12346", cid:"2345678901234", dob:"2555-08-22",
+      terms:{
+        "1":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
+              s:{ "ท21101":[57,19,19],"ค21101":[58,19,20],"ว21101":[54,18,18],"ส21101":[56,18,19],"อ21101":[55,18,18],"พ21101":[58,19,19],"ศ21101":[54,18,18],"ง21101":[55,18,18] } },
+        "2":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
+              s:{ "ท21101":[58,19,20],"ค21101":[59,20,20],"ว21101":[56,19,19],"ส21101":[57,19,19],"อ21101":[56,19,19],"พ21101":[58,19,20],"ศ21101":[55,18,19],"ง21101":[56,19,19] } }
+      } }
+  ],
+  "p6-1": [
+    { no:1, name:"เด็กชายกิตติพงษ์ ศรีสุข", sid:"60101", cid:"5678901234567", dob:"2557-03-12",
+      read:"ดี", char:"ดีเยี่ยม", comp:"ผ่าน",
+      y:{ "ท16101":78,"ค16101":82,"ว16101":71,"ส16101":76,"อ16101":68,"พ16101":85,"ศ16101":80,"ง16101":74 } },
+    { no:2, name:"เด็กหญิงณัฐธิดา พูนทรัพย์", sid:"60102", cid:"6789012345678", dob:"2557-07-25",
+      read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
+      y:{ "ท16101":88,"ค16101":85,"ว16101":83,"ส16101":86,"อ16101":80,"พ16101":90,"ศ16101":84,"ง16101":82 } }
+  ]
+};
+
+/* ============================================================
+   ฟังก์ชันคำนวณ (เกณฑ์ 8 ระดับ ตามหลักสูตรแกนกลาง 2551)
+   ============================================================ */
+function gradeOf(total) {
+  if (total >= 80) return 4.0;
+  if (total >= 75) return 3.5;
+  if (total >= 70) return 3.0;
+  if (total >= 65) return 2.5;
+  if (total >= 60) return 2.0;
+  if (total >= 55) return 1.5;
+  if (total >= 50) return 1.0;
+  return 0;
+}
+function fmt(n, d) { return Number(n).toFixed(d === undefined ? 2 : d); }
+function classById(id) { for (var i=0;i<CLASSES.length;i++) if (CLASSES[i].id===id) return CLASSES[i]; return null; }
+function rosterOf(id) { return (CURRENT_YEAR === DATA_YEAR) ? (ROSTER[id] || []) : []; }
+function hasData() { return CURRENT_YEAR === DATA_YEAR; }
+
+/* มัธยม */
+function secTermTotal(stu, term, code) { var t=stu.terms[term]; if(!t||!t.s[code]) return 0; var a=t.s[code]; return a[0]+a[1]+a[2]; }
+function secGPA(stu, term) {
+  var subs=SUBJECTS.secondary, sg=0, sc=0;
+  for (var i=0;i<subs.length;i++){ var tt=secTermTotal(stu,term,subs[i].code); sg+=gradeOf(tt)*subs[i].credit; sc+=subs[i].credit; }
+  return sc ? sg/sc : 0;
+}
+function secGPAX(stu) {
+  var subs=SUBJECTS.secondary, sg=0, sc=0;
+  for (var tk in stu.terms){ if(!stu.terms.hasOwnProperty(tk)) continue;
+    for (var i=0;i<subs.length;i++){ var tt=secTermTotal(stu,tk,subs[i].code); sg+=gradeOf(tt)*subs[i].credit; sc+=subs[i].credit; } }
+  return sc ? sg/sc : 0;
+}
+/* ประถม */
+function priGPA(stu) {
+  var subs=SUBJECTS.primary, sum=0, n=0;
+  for (var i=0;i<subs.length;i++){ var sc=stu.y[subs[i].code]; if(sc==null) continue; sum+=gradeOf(sc); n++; }
+  return n ? sum/n : 0;
+}
+
+/* ============================================================
+   Router
+   ============================================================ */
+function go(name) {
+  var views=document.querySelectorAll('.view');
+  for (var i=0;i<views.length;i++) views[i].classList.remove('active');
+  document.getElementById('view-'+name).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   นักเรียนล็อกอิน + รายงาน ปพ.6
+   ============================================================ */
+var VIEW_CTX = null;      /* {stu, cls} */
+var REPORT_BACK = 'student-login';
+
+function findStudent(cid, dob) {
+  for (var i=0;i<CLASSES.length;i++){
+    var list=ROSTER[CLASSES[i].id]||[];
+    for (var j=0;j<list.length;j++){
+      if (list[j].cid===cid && list[j].dob===dob) return { stu:list[j], cls:CLASSES[i] };
+    }
+  }
+  return null;
+}
+function studentLogin() {
+  var id=document.getElementById('stu-id').value.trim();
+  var dob=document.getElementById('stu-dob').value;
+  var year=document.getElementById('stu-year').value;
+  var alert=document.getElementById('stu-alert');
+  var found=findStudent(id, dob);
+  if (!found){ alert.classList.add('show'); return; }
+  alert.classList.remove('show');
+  VIEW_CTX=found; REPORT_BACK='student-login';
+  renderReport(year, found.cls.system==='secondary' ? '1' : null);
+  go('student-result');
+}
+function backFromReport(){ go(REPORT_BACK); }
+
+function yearOptions(sel) {
+  var o="";
+  for (var i=0;i<YEARS.length;i++){ o+='<option value="'+YEARS[i]+'"'+(YEARS[i]===sel?' selected':'')+'>ปีการศึกษา '+YEARS[i]+'</option>'; }
+  return o;
+}
+function reReport() {
+  var y=document.getElementById('rp-year').value;
+  var tEl=document.getElementById('rp-term');
+  renderReport(y, tEl?tEl.value:null);
+}
+function renderReport(year, term) {
+  var stu=VIEW_CTX.stu, cls=VIEW_CTX.cls;
+  /* selectors */
+  var sel='<select id="rp-year" class="doc-sel" onchange="reReport()">'+yearOptions(year)+'</select>';
+  if (cls.system==='secondary'){
+    sel+='<select id="rp-term" class="doc-sel" onchange="reReport()">'
+      +'<option value="1"'+(term==='1'?' selected':'')+'>ภาคเรียนที่ 1</option>'
+      +'<option value="2"'+(term==='2'?' selected':'')+'>ภาคเรียนที่ 2</option></select>';
+  }
+  document.getElementById('report-selectors').innerHTML=sel;
+
+  var head=''
+    +'<div class="paper-head">'
+    +'<img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />'
+    +'<h2>'+SCHOOL.name+'</h2><div class="sub">'+SCHOOL.area+'</div>'
+    +'<div class="doc-type">ปพ.6 — รายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล</div></div>'
+    +'<hr class="gold-rule" style="margin:22px 40px 0" />';
+
+  /* ปีที่ไม่มีข้อมูล */
+  if (year!==DATA_YEAR){
+    document.getElementById('report-paper').innerHTML=head
+      +'<div class="doc-empty"><i class="ti ti-folder-off"></i><p>ยังไม่มีข้อมูลผลการเรียนในปีการศึกษา '+year+'</p></div>';
+    return;
+  }
+
+  if (cls.system==='secondary') renderSecReport(stu, cls, year, term, head);
+  else renderPriReport(stu, cls, year, head);
+}
+
+function renderSecReport(stu, cls, year, term, head) {
+  var subs=SUBJECTS.secondary, rows="", totalCredit=0;
+  for (var i=0;i<subs.length;i++){
+    var tt=secTermTotal(stu, term, subs[i].code);
+    totalCredit+=subs[i].credit;
+    rows+='<tr><td>'+subs[i].code+'</td><td>'+subs[i].name+'</td>'
+      +'<td class="num">'+fmt(subs[i].credit,1)+'</td><td class="num">'+tt+'</td>'
+      +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tt),1)+'</span></td></tr>';
+  }
+  var t=stu.terms[term]||{read:'-',char:'-',comp:'-'};
+  var html=head+'<div class="paper-inner">'
+    +'<div class="stu-meta">'
+    +'<div><span>ชื่อ - สกุล:</span> <b>'+stu.name+'</b></div>'
+    +'<div><span>เลขประจำตัว:</span> '+stu.sid+'</div>'
+    +'<div><span>ระดับชั้น:</span> '+cls.level+'</div>'
+    +'<div><span>ภาคเรียน:</span> ภาคเรียนที่ '+term+' ปีการศึกษา '+year+'</div></div>'
+    +'<table class="grades"><thead><tr><th>รหัสวิชา</th><th>รายวิชา</th><th class="num">หน่วยกิต</th><th class="num">คะแนน</th><th class="num">ผลการเรียน</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="2">รวม / ผลการเรียนเฉลี่ยภาคนี้</td><td class="num">'+fmt(totalCredit,1)+'</td><td class="num">—</td><td class="num">'+fmt(secGPA(stu,term),2)+'</td></tr></tfoot></table>'
+    +'<div class="summary-strip">'
+    +'<div class="sum-box"><div class="k">เฉลี่ยภาคนี้ (GPA)</div><div class="v">'+fmt(secGPA(stu,term),2)+'</div></div>'
+    +'<div class="sum-box"><div class="k">เฉลี่ยสะสม (GPAX)</div><div class="v">'+fmt(secGPAX(stu),2)+'</div></div>'
+    +'<div class="sum-box"><div class="k">หน่วยกิตภาคนี้</div><div class="v">'+fmt(totalCredit,1)+'</div></div></div>'
+    +'<div class="assess-grid">'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+t.read+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+t.char+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+t.comp+'</b></div>'
+    +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div></div>';
+  document.getElementById('report-paper').innerHTML=html;
+}
+
+function renderPriReport(stu, cls, year, head) {
+  var subs=SUBJECTS.primary, rows="";
+  for (var i=0;i<subs.length;i++){
+    var sc=stu.y[subs[i].code];
+    rows+='<tr><td>'+subs[i].code+'</td><td>'+subs[i].name+'</td>'
+      +'<td class="num">'+sc+'</td>'
+      +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(sc),1)+'</span></td></tr>';
+  }
+  var html=head+'<div class="paper-inner">'
+    +'<div class="stu-meta">'
+    +'<div><span>ชื่อ - สกุล:</span> <b>'+stu.name+'</b></div>'
+    +'<div><span>เลขประจำตัว:</span> '+stu.sid+'</div>'
+    +'<div><span>ระดับชั้น:</span> '+cls.level+'</div>'
+    +'<div><span>ปีการศึกษา:</span> '+year+' (ผลการเรียนทั้งปี)</div></div>'
+    +'<table class="grades"><thead><tr><th>รหัสวิชา</th><th>รายวิชา</th><th class="num">คะแนน</th><th class="num">ผลการเรียน</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="2">ผลการเรียนเฉลี่ยทั้งปี</td><td class="num">—</td><td class="num">'+fmt(priGPA(stu),2)+'</td></tr></tfoot></table>'
+    +'<div class="summary-strip">'
+    +'<div class="sum-box"><div class="k">ผลการเรียนเฉลี่ย</div><div class="v">'+fmt(priGPA(stu),2)+'</div></div>'
+    +'<div class="sum-box"><div class="k">จำนวนรายวิชา</div><div class="v">'+subs.length+'</div></div>'
+    +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+year+'</div></div></div>'
+    +'<div class="assess-grid">'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+stu.read+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+stu.char+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+stu.comp+'</b></div>'
+    +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div></div>';
+  document.getElementById('report-paper').innerHTML=html;
+}
+
+/* ============================================================
+   แอดมิน
+   ============================================================ */
+function adminLogin() {
+  var email=document.getElementById('adm-email').value.trim();
+  var pass=document.getElementById('adm-pass').value;
+  var alert=document.getElementById('adm-alert');
+  if (!window.fbSignIn){ alert.textContent='ระบบกำลังโหลด กรุณารอสักครู่แล้วลองใหม่'; alert.classList.add('show'); return; }
+  window.fbSignIn(email, pass).then(function(){
+    alert.classList.remove('show'); initAdmin(); go('admin');
+  }).catch(function(err){
+    alert.textContent='อีเมลหรือรหัสผ่านไม่ถูกต้อง'; alert.classList.add('show');
+  });
+}
+function logout() {
+  if (window.fbSignOut) window.fbSignOut();
+  go('public');
+}
+function showPane(name, el) {
+  var panes=document.querySelectorAll('.pane');
+  for (var i=0;i<panes.length;i++) panes[i].classList.remove('active');
+  document.getElementById('pane-'+name).classList.add('active');
+  var links=document.querySelectorAll('.side .nav-link');
+  for (var j=0;j<links.length;j++) links[j].classList.remove('active');
+  if (el) el.classList.add('active');
+}
+function classOptions(sel) {
+  var o="";
+  for (var i=0;i<CLASSES.length;i++){ o+='<option value="'+CLASSES[i].id+'"'+(CLASSES[i].id===sel?' selected':'')+'>'+CLASSES[i].name+'</option>'; }
+  return o;
+}
+function onYearChange() {
+  CURRENT_YEAR=document.getElementById('year-select').value;
+  document.getElementById('dash-sub').textContent='ปีการศึกษา '+CURRENT_YEAR;
+  refreshAdmin();
+}
+function refreshAdmin() {
+  renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6();
+}
+function initAdmin() {
+  document.getElementById('year-select').innerHTML=yearOptions(CURRENT_YEAR);
+  document.getElementById('stu-class').innerHTML=classOptions('m1-1');
+  document.getElementById('pp5-class').innerHTML=classOptions('m1-1');
+  document.getElementById('pp6-class').innerHTML=classOptions('m1-1');
+  refreshAdmin();
+  renderSwatches(); renderThemeMenu();
+}
+
+function renderDashboard() {
+  var total=0;
+  for (var i=0;i<CLASSES.length;i++) total+=rosterOf(CLASSES[i].id).length;
+  document.getElementById('st-students').textContent=total;
+  document.getElementById('st-classes').textContent=CLASSES.length;
+  document.getElementById('st-years').textContent=YEARS.length;
+  document.getElementById('st-subjects').textContent=SUBJECTS.secondary.length+SUBJECTS.primary.length;
+
+  if (!hasData()){
+    document.getElementById('dash-classes').innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i><p>ยังไม่มีข้อมูลในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
+    return;
+  }
+  var rows="";
+  for (var k=0;k<CLASSES.length;k++){
+    var c=CLASSES[k];
+    var sysLabel=(c.system==='secondary')?'มัธยม · แยกภาคเรียน 1-2 · หน่วยกิต':'ประถม · ผลการเรียนทั้งปี';
+    rows+='<tr><td>'+c.name+'</td><td>'+c.level+'</td>'
+      +'<td><span class="pill pill-sys">'+sysLabel+'</span></td>'
+      +'<td class="num">'+rosterOf(c.id).length+'</td></tr>';
+  }
+  document.getElementById('dash-classes').innerHTML=
+    '<table class="data"><thead><tr><th>ห้อง</th><th>ระดับชั้น</th><th>รูปแบบการเก็บผล</th><th class="num">นักเรียน</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderStudents() {
+  var cid=document.getElementById('stu-class').value;
+  var c=classById(cid);
+  document.getElementById('stu-title').textContent='รายชื่อนักเรียน '+c.name;
+  var list=rosterOf(cid);
+  if (!list.length){
+    document.getElementById('student-table').innerHTML='<div class="empty"><i class="ti ti-users-minus"></i><p>ยังไม่มีข้อมูลนักเรียนในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
+    return;
+  }
+  var avgHead=(c.system==='secondary')?'GPAX สะสม':'เฉลี่ยทั้งปี';
+  var rows="";
+  for (var i=0;i<list.length;i++){
+    var st=list[i];
+    var avg=(c.system==='secondary')?secGPAX(st):priGPA(st);
+    rows+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td><td>'+st.sid+'</td>'
+      +'<td class="num"><span class="pill pill-grade">'+fmt(avg,2)+'</span></td>'
+      +'<td><button class="btn btn-ghost" style="padding:6px 12px;font-size:13px"><i class="ti ti-edit"></i> แก้ไข</button></td></tr>';
+  }
+  document.getElementById('student-table').innerHTML=
+    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>เลขประจำตัว</th><th class="num">'+avgHead+'</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function onPp5ClassChange() {
+  var cid=document.getElementById('pp5-class').value;
+  var c=classById(cid);
+  var subs=SUBJECTS[c.system], opt="";
+  for (var i=0;i<subs.length;i++){ opt+='<option value="'+subs[i].code+'">'+subs[i].name+' ('+subs[i].code+')</option>'; }
+  document.getElementById('pp5-subject').innerHTML=opt;
+  document.getElementById('pp5-term-wrap').style.display=(c.system==='secondary')?'block':'none';
+  renderPp5();
+}
+function renderPp5() {
+  var cid=document.getElementById('pp5-class').value;
+  var c=classById(cid);
+  var code=document.getElementById('pp5-subject').value;
+  var subs=SUBJECTS[c.system], sub=null;
+  for (var i=0;i<subs.length;i++) if (subs[i].code===code) sub=subs[i];
+  var list=rosterOf(cid);
+
+  if (!hasData() || !list.length){
+    document.getElementById('pp5-title').textContent='คะแนน';
+    document.getElementById('pp5-table').innerHTML='<div class="empty"><i class="ti ti-clipboard-off"></i><p>ยังไม่มีข้อมูลในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
+    return;
+  }
+
+  if (c.system==='secondary'){
+    var term=document.getElementById('pp5-term').value;
+    document.getElementById('pp5-title').textContent='คะแนน — '+sub.name+' · '+c.name+' · ภาคเรียนที่ '+term;
+    document.getElementById('pp5-scale').textContent='เก็บ 60 + กลางภาค 20 + ปลายภาค 20';
+    var r1="";
+    for (var j=0;j<list.length;j++){
+      var st=list[j]; var a=(st.terms[term]&&st.terms[term].s[code])?st.terms[term].s[code]:[0,0,0];
+      var tot=a[0]+a[1]+a[2];
+      r1+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
+        +'<td class="num"><input class="score" value="'+a[0]+'" /></td>'
+        +'<td class="num"><input class="score" value="'+a[1]+'" /></td>'
+        +'<td class="num"><input class="score" value="'+a[2]+'" /></td>'
+        +'<td class="num"><b>'+tot+'</b></td>'
+        +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tot),1)+'</span></td></tr>';
+    }
+    document.getElementById('pp5-table').innerHTML=
+      '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">เก็บ (60)</th><th class="num">กลางภาค (20)</th><th class="num">ปลายภาค (20)</th><th class="num">รวม</th><th class="num">เกรด</th></tr></thead><tbody>'+r1+'</tbody></table>';
+  } else {
+    document.getElementById('pp5-title').textContent='คะแนน — '+sub.name+' · '+c.name+' · ทั้งปีการศึกษา';
+    document.getElementById('pp5-scale').textContent='คะแนนรวมทั้งปี เต็ม 100';
+    var r2="";
+    for (var k=0;k<list.length;k++){
+      var s2=list[k]; var sc=(s2.y[code]!=null)?s2.y[code]:0;
+      r2+='<tr><td class="num">'+s2.no+'</td><td>'+s2.name+'</td>'
+        +'<td class="num"><input class="score" value="'+sc+'" /></td>'
+        +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(sc),1)+'</span></td></tr>';
+    }
+    document.getElementById('pp5-table').innerHTML=
+      '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">คะแนนรวมทั้งปี (100)</th><th class="num">เกรด</th></tr></thead><tbody>'+r2+'</tbody></table>';
+  }
+}
+function savePp5() { alert('ตัวอย่าง prototype: ในระบบจริง จุดนี้จะบันทึกคะแนนลง Firestore แล้วอัปเดต ปพ.6 อัตโนมัติ'); }
+
+function renderPp6() {
+  var cid=document.getElementById('pp6-class').value;
+  var c=classById(cid);
+  document.getElementById('pp6-title').textContent='นักเรียน '+c.name+' — เลือกเพื่อดูรายงาน ปพ.6';
+  var list=rosterOf(cid);
+  if (!list.length){
+    document.getElementById('pp6-table').innerHTML='<div class="empty"><i class="ti ti-file-off"></i><p>ยังไม่มีข้อมูลในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
+    return;
+  }
+  var avgHead=(c.system==='secondary')?'GPAX สะสม':'เฉลี่ยทั้งปี';
+  var rows="";
+  for (var i=0;i<list.length;i++){
+    var st=list[i];
+    var avg=(c.system==='secondary')?secGPAX(st):priGPA(st);
+    rows+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
+      +'<td class="num"><span class="pill pill-grade">'+fmt(avg,2)+'</span></td>'
+      +'<td><span class="pill pill-ok">ผ่าน</span></td>'
+      +'<td><button class="btn btn-primary" style="padding:6px 12px;font-size:13px" onclick="adminViewReport(\''+cid+'\','+i+')"><i class="ti ti-eye"></i> ดูรายงาน</button></td></tr>';
+  }
+  document.getElementById('pp6-table').innerHTML=
+    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">'+avgHead+'</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function adminViewReport(cid, idx) {
+  var cls=classById(cid); var stu=rosterOf(cid)[idx];
+  VIEW_CTX={stu:stu, cls:cls}; REPORT_BACK='admin';
+  renderReport(CURRENT_YEAR, cls.system==='secondary' ? '1' : null);
+  go('student-result');
+}
+
+/* ============================================================
+   ระบบโทนสี
+   ============================================================ */
+var THEMES = {
+  navy:    { name:"กรมท่า",      sub:"ทางการ คลาสสิก",   ink:"#16314E", primary:"#245C8C", dark:"#1B4A73", soft:"#E9F1F8", gold:"#C7A04A" },
+  emerald: { name:"เขียวมรกต",   sub:"สดชื่น สุภาพ",      ink:"#13392C", primary:"#1F7A52", dark:"#155D3E", soft:"#E6F2EC", gold:"#C79A3A" },
+  maroon:  { name:"แดงเลือดหมู",  sub:"ขรึม น่าเชื่อถือ",   ink:"#4A1A1E", primary:"#9B2D32", dark:"#7A2227", soft:"#F7E9EA", gold:"#C7A04A" },
+  plum:    { name:"ม่วงอมชมพู",   sub:"นุ่มนวล ทันสมัย",    ink:"#3A1F4A", primary:"#6B3B8C", dark:"#532D70", soft:"#F0E9F7", gold:"#C79A3A" },
+  slate:   { name:"เทาเข้ม",      sub:"เรียบ มินิมอล",     ink:"#1F2933", primary:"#3D5066", dark:"#2C3A4B", soft:"#EAEEF3", gold:"#B08D57" }
+};
+var CURRENT_THEME='navy';
+function applyTheme(key) {
+  var t=THEMES[key]; if(!t) return;
+  var r=document.documentElement.style;
+  r.setProperty('--ink',t.ink); r.setProperty('--primary',t.primary); r.setProperty('--primary-dark',t.dark);
+  r.setProperty('--primary-soft',t.soft); r.setProperty('--gold',t.gold);
+  CURRENT_THEME=key; renderSwatches(); renderThemeMenu();
+}
+function renderSwatches() {
+  var html="";
+  for (var key in THEMES){ if(!THEMES.hasOwnProperty(key)) continue; var t=THEMES[key];
+    html+='<button class="swatch'+(key===CURRENT_THEME?' active':'')+'" onclick="applyTheme(\''+key+'\')">'
+      +'<span class="dots"><span class="dot" style="background:'+t.ink+'"></span><span class="dot" style="background:'+t.primary+'"></span><span class="dot" style="background:'+t.gold+'"></span></span>'
+      +'<span class="lab">'+t.name+'<small>'+t.sub+'</small></span></button>'; }
+  var g=document.getElementById('swatch-grid'); if(g) g.innerHTML=html;
+}
+function renderThemeMenu() {
+  var html="";
+  for (var key in THEMES){ if(!THEMES.hasOwnProperty(key)) continue; var t=THEMES[key];
+    var check=(key===CURRENT_THEME)?'<i class="ti ti-check" style="margin-left:auto;color:var(--primary)"></i>':'';
+    html+='<button onclick="applyTheme(\''+key+'\'); closeThemeMenu()"><span class="dot" style="background:'+t.primary+'"></span>'+t.name+check+'</button>'; }
+  var m=document.getElementById('theme-menu'); if(m) m.innerHTML=html;
+}
+function toggleThemeMenu(e){ if(e) e.stopPropagation(); var m=document.getElementById('theme-menu'); if(m) m.classList.toggle('open'); }
+function closeThemeMenu(){ var m=document.getElementById('theme-menu'); if(m) m.classList.remove('open'); }
+document.addEventListener('click', function(e){
+  var inside=e.target&&e.target.closest&&e.target.closest('.theme-quick');
+  if(!inside) closeThemeMenu();
+});
+
+/* เติมปีการศึกษาในฟอร์มนักเรียน (หน้า Public) */
+(function(){
+  var sy=document.getElementById('stu-year');
+  if(sy) sy.innerHTML=yearOptions(CURRENT_YEAR);
+})();
+</script>
+
+<!-- ============ เชื่อม Firebase ============ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCEJNg2j3L3M58W_IKS20WmlpxqBGZAqT8",
+    authDomain: "course-achievement.firebaseapp.com",
+    projectId: "course-achievement",
+    storageBucket: "course-achievement.firebasestorage.app",
+    messagingSenderId: "1074579209808",
+    appId: "1:1074579209808:web:95c94b0b3e9014eee9db55"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  /* เปิดให้โค้ดส่วนแอป (ปุ่มล็อกอิน/ออกจากระบบ) เรียกใช้ได้ */
+  window.fbSignIn  = function(email, pass){ return signInWithEmailAndPassword(auth, email, pass); };
+  window.fbSignOut = function(){ return signOut(auth); };
+</script>
+</body>
+</html>
