@@ -368,6 +368,7 @@
       <nav class="side">
         <a class="nav-link active" data-pane="dashboard" onclick="showPane('dashboard', this)"><i class="ti ti-layout-dashboard"></i> ภาพรวม</a>
         <a class="nav-link" data-pane="students" onclick="showPane('students', this)"><i class="ti ti-users"></i> ข้อมูลนักเรียน</a>
+        <a class="nav-link" data-pane="subjects" onclick="showPane('subjects', this)"><i class="ti ti-book-2"></i> รายวิชา</a>
         <a class="nav-link" data-pane="pp5" onclick="showPane('pp5', this)"><i class="ti ti-clipboard-text"></i> บันทึก ปพ.5</a>
         <a class="nav-link" data-pane="pp6" onclick="showPane('pp6', this)"><i class="ti ti-file-certificate"></i> ออก ปพ.6</a>
         <a class="nav-link" data-pane="assess" onclick="showPane('assess', this)"><i class="ti ti-checkup-list"></i> ประเมินคุณลักษณะ</a>
@@ -401,6 +402,19 @@
           <div class="panel">
             <div class="panel-head"><h3 id="stu-title">รายชื่อนักเรียน</h3></div>
             <div class="panel-body"><div id="student-table"></div></div>
+          </div>
+        </section>
+
+        <!-- รายวิชา -->
+        <section class="pane" id="pane-subjects">
+          <div class="page-title"><div><h2>โครงสร้างรายวิชา</h2><p>จัดการรายวิชาที่เปิดสอน — เพิ่ม แก้ไข ลบ</p></div>
+            <button class="btn btn-primary" onclick="openSubjectModal('add')"><i class="ti ti-plus"></i> เพิ่มรายวิชา</button></div>
+          <div class="selectors">
+            <div class="field"><label>ระดับ</label><select id="subj-level" onchange="renderSubjects()"><option value="secondary">มัธยม</option><option value="primary">ประถม</option></select></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3 id="subj-title">รายวิชา</h3></div>
+            <div class="panel-body"><div id="subj-table"></div></div>
           </div>
         </section>
 
@@ -510,6 +524,31 @@
       </div>
     </div>
 
+    <!-- Modal: เพิ่ม/แก้รายวิชา -->
+    <div class="modal-overlay" id="subject-modal">
+      <div class="modal">
+        <div class="modal-head"><h3 id="subject-modal-title">เพิ่มรายวิชา</h3><button class="x" onclick="closeSubjectModal()">&times;</button></div>
+        <div class="modal-body">
+          <div id="subject-modal-alert" class="alert alert-error"></div>
+          <div class="field"><label>ระดับ</label><select id="sjf-system"><option value="secondary">มัธยม (มีหน่วยกิต)</option><option value="primary">ประถม</option></select></div>
+          <div class="field"><label>รหัสวิชา</label><input id="sjf-code" type="text" placeholder="เช่น ค21101" /></div>
+          <div class="field"><label>ชื่อวิชา</label><input id="sjf-name" type="text" placeholder="เช่น คณิตศาสตร์" /></div>
+          <div class="field"><label>กลุ่มสาระการเรียนรู้</label><input id="sjf-strand" type="text" placeholder="เช่น คณิตศาสตร์" /></div>
+          <div class="field"><label>ประเภทวิชา</label><select id="sjf-type"><option value="พื้นฐาน">พื้นฐาน</option><option value="เพิ่มเติม">เพิ่มเติม</option></select></div>
+          <div class="field"><label>เวลาเรียน (ชั่วโมง/ภาค)</label><input id="sjf-hours" type="number" min="0" placeholder="เช่น 60" /></div>
+          <div class="field"><label>หน่วยกิต (เฉพาะมัธยม)</label><input id="sjf-credit" type="number" min="0" step="0.5" placeholder="เช่น 1.5" /></div>
+          <div class="field"><label>อัตราส่วนคะแนน เก็บ : สอบ</label>
+            <div style="display:flex;gap:10px"><input id="sjf-collect" type="number" min="0" max="100" placeholder="70" /><input id="sjf-exam" type="number" min="0" max="100" placeholder="30" /></div>
+            <div class="hint">รวมกันควรได้ 100 เช่น 70 กับ 30</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeSubjectModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="sjf-save-btn" onclick="saveSubject()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
   </div>
 </section>
@@ -536,27 +575,41 @@ window.onClassesLoaded = function(arr) {
   if (document.getElementById('view-admin').classList.contains('active')) initAdmin();
 };
 
+/* รายวิชา — เริ่มจากค่าสำรอง แล้วถูกแทนที่ด้วยข้อมูลจริงจาก Firestore เมื่อโหลดเสร็จ
+   แต่ละวิชา: {code,name,strand,hours,type,credit,system,ratioCollect,ratioExam} */
 var SUBJECTS = {
   secondary: [
-    { code:"ท21101", name:"ภาษาไทย",          credit:1.5, hours:3 },
-    { code:"ค21101", name:"คณิตศาสตร์",        credit:1.5, hours:3 },
-    { code:"ว21101", name:"วิทยาศาสตร์",       credit:1.5, hours:3 },
-    { code:"ส21101", name:"สังคมศึกษา",        credit:1.5, hours:3 },
-    { code:"อ21101", name:"ภาษาอังกฤษ",        credit:1.5, hours:3 },
-    { code:"พ21101", name:"สุขศึกษาและพลศึกษา", credit:1.0, hours:2 },
-    { code:"ศ21101", name:"ศิลปะ",             credit:1.0, hours:2 },
-    { code:"ง21101", name:"การงานอาชีพ",       credit:1.0, hours:2 }
+    { code:"ท21101", name:"ภาษาไทย",          strand:"ภาษาไทย", credit:1.5, hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ค21101", name:"คณิตศาสตร์",        strand:"คณิตศาสตร์", credit:1.5, hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ว21101", name:"วิทยาศาสตร์",       strand:"วิทยาศาสตร์และเทคโนโลยี", credit:1.5, hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ส21101", name:"สังคมศึกษา",        strand:"สังคมศึกษา ศาสนาและวัฒนธรรม", credit:1.5, hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"อ21101", name:"ภาษาอังกฤษ",        strand:"ภาษาต่างประเทศ", credit:1.5, hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"พ21101", name:"สุขศึกษาและพลศึกษา", strand:"สุขศึกษาและพลศึกษา", credit:1.0, hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 },
+    { code:"ศ21101", name:"ศิลปะ",             strand:"ศิลปะ", credit:1.0, hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 },
+    { code:"ง21101", name:"การงานอาชีพ",       strand:"การงานอาชีพ", credit:1.0, hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 }
   ],
   primary: [
-    { code:"ท16101", name:"ภาษาไทย",          hours:5 },
-    { code:"ค16101", name:"คณิตศาสตร์",        hours:5 },
-    { code:"ว16101", name:"วิทยาศาสตร์",       hours:3 },
-    { code:"ส16101", name:"สังคมศึกษา",        hours:3 },
-    { code:"อ16101", name:"ภาษาอังกฤษ",        hours:3 },
-    { code:"พ16101", name:"สุขศึกษาและพลศึกษา", hours:2 },
-    { code:"ศ16101", name:"ศิลปะ",             hours:2 },
-    { code:"ง16101", name:"การงานอาชีพ",       hours:2 }
+    { code:"ท16101", name:"ภาษาไทย",          strand:"ภาษาไทย", hours:5, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ค16101", name:"คณิตศาสตร์",        strand:"คณิตศาสตร์", hours:5, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ว16101", name:"วิทยาศาสตร์",       strand:"วิทยาศาสตร์และเทคโนโลยี", hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"ส16101", name:"สังคมศึกษา",        strand:"สังคมศึกษา ศาสนาและวัฒนธรรม", hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"อ16101", name:"ภาษาอังกฤษ",        strand:"ภาษาต่างประเทศ", hours:3, type:"พื้นฐาน", ratioCollect:70, ratioExam:30 },
+    { code:"พ16101", name:"สุขศึกษาและพลศึกษา", strand:"สุขศึกษาและพลศึกษา", hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 },
+    { code:"ศ16101", name:"ศิลปะ",             strand:"ศิลปะ", hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 },
+    { code:"ง16101", name:"การงานอาชีพ",       strand:"การงานอาชีพ", hours:2, type:"พื้นฐาน", ratioCollect:80, ratioExam:20 }
   ]
+};
+/* Firebase เรียกเมื่อโหลดรายวิชาจาก Firestore เสร็จ */
+window.onSubjectsLoaded = function(arr) {
+  if (!arr || !arr.length) return;
+  SUBJECTS = { secondary:[], primary:[] };
+  for (var i=0;i<arr.length;i++){
+    var s=arr[i], sys=(s.system==='primary')?'primary':'secondary';
+    SUBJECTS[sys].push(s);
+  }
+  if (document.getElementById('view-admin').classList.contains('active')) {
+    renderSubjects(); renderDashboard(); onPp5ClassChange(); renderPp6();
+  }
 };
 
 /* นักเรียนทั้งหมด โหลดจาก Firestore — แต่ละคน: {id,name,sid,no,cid,dob,classId,year}
@@ -939,7 +992,7 @@ function onYearChange() {
   loadAllData();
 }
 function refreshAdmin() {
-  renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6(); onAssessClassChange();
+  renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6(); onAssessClassChange(); renderSubjects();
 }
 function initAdmin() {
   document.getElementById('year-select').innerHTML=yearOptions(CURRENT_YEAR);
@@ -1228,6 +1281,99 @@ function saveAssess() {
     .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
 }
 
+/* ---- จัดการรายวิชา (เขียนลง Firestore) ---- */
+function renderSubjects() {
+  var sys=document.getElementById('subj-level').value;
+  var arr=SUBJECTS[sys]||[];
+  document.getElementById('subj-title').textContent='รายวิชา'+(sys==='secondary'?'ระดับมัธยม':'ระดับประถม')+' ('+arr.length+' วิชา)';
+  if (!arr.length){
+    document.getElementById('subj-table').innerHTML='<div class="empty"><i class="ti ti-book-off"></i><p>ยังไม่มีรายวิชาในระดับนี้</p></div>';
+    return;
+  }
+  var creditCol=(sys==='secondary');
+  var rows="";
+  for (var i=0;i<arr.length;i++){
+    var s=arr[i];
+    rows+='<tr><td class="num">'+(i+1)+'</td><td>'+s.code+'</td><td>'+s.name+'</td><td>'+(s.strand||'-')+'</td>'
+      +'<td class="num">'+(s.hours||'-')+'</td><td><span class="pill pill-sys">'+(s.type||'พื้นฐาน')+'</span></td>'
+      +(creditCol?('<td class="num">'+(s.credit!=null?fmt(s.credit,1):'-')+'</td>'):'')
+      +'<td class="num">'+(s.ratioCollect||0)+' : '+(s.ratioExam||0)+'</td>'
+      +'<td class="num"><button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="openSubjectModal(\'edit\',\''+sys+'\',\''+s.code+'\')"><i class="ti ti-edit"></i></button> '
+      +'<button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="deleteSubject(\''+sys+'\',\''+s.code+'\')"><i class="ti ti-trash"></i></button></td></tr>';
+  }
+  document.getElementById('subj-table').innerHTML=
+    '<table class="data"><thead><tr><th class="num">ที่</th><th>รหัสวิชา</th><th>ชื่อวิชา</th><th>กลุ่มสาระ</th><th class="num">เวลาเรียน</th><th>ประเภท</th>'
+    +(creditCol?'<th class="num">หน่วยกิต</th>':'')+'<th class="num">เก็บ:สอบ</th><th class="num">จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function subjectByCode(sys, code){ var arr=SUBJECTS[sys]||[]; for (var i=0;i<arr.length;i++) if(arr[i].code===code) return arr[i]; return null; }
+function openSubjectModal(mode, sys, code) {
+  var alert=document.getElementById('subject-modal-alert'); alert.classList.remove('show');
+  var codeInput=document.getElementById('sjf-code');
+  if (mode==='edit'){
+    var s=subjectByCode(sys, code); if(!s) return;
+    document.getElementById('subject-modal-title').textContent='แก้ไขรายวิชา';
+    document.getElementById('sjf-system').value=sys; document.getElementById('sjf-system').disabled=true;
+    codeInput.value=s.code; codeInput.disabled=true;
+    document.getElementById('sjf-name').value=s.name;
+    document.getElementById('sjf-strand').value=s.strand||'';
+    document.getElementById('sjf-type').value=s.type||'พื้นฐาน';
+    document.getElementById('sjf-hours').value=s.hours||'';
+    document.getElementById('sjf-credit').value=(s.credit!=null?s.credit:'');
+    document.getElementById('sjf-collect').value=(s.ratioCollect!=null?s.ratioCollect:70);
+    document.getElementById('sjf-exam').value=(s.ratioExam!=null?s.ratioExam:30);
+    document.getElementById('sjf-save-btn').setAttribute('data-edit', s.code);
+  } else {
+    document.getElementById('subject-modal-title').textContent='เพิ่มรายวิชา';
+    document.getElementById('sjf-system').disabled=false;
+    if (sys) document.getElementById('sjf-system').value=sys;
+    codeInput.value=''; codeInput.disabled=false;
+    document.getElementById('sjf-name').value='';
+    document.getElementById('sjf-strand').value='';
+    document.getElementById('sjf-type').value='พื้นฐาน';
+    document.getElementById('sjf-hours').value='';
+    document.getElementById('sjf-credit').value='';
+    document.getElementById('sjf-collect').value='70';
+    document.getElementById('sjf-exam').value='30';
+    document.getElementById('sjf-save-btn').removeAttribute('data-edit');
+  }
+  document.getElementById('subject-modal').classList.add('open');
+}
+function closeSubjectModal() { document.getElementById('subject-modal').classList.remove('open'); }
+function saveSubject() {
+  var sys=document.getElementById('sjf-system').value;
+  var data={
+    system: sys,
+    code: document.getElementById('sjf-code').value.trim(),
+    name: document.getElementById('sjf-name').value.trim(),
+    strand: document.getElementById('sjf-strand').value.trim(),
+    type: document.getElementById('sjf-type').value,
+    hours: parseInt(document.getElementById('sjf-hours').value,10)||0,
+    ratioCollect: parseInt(document.getElementById('sjf-collect').value,10)||0,
+    ratioExam: parseInt(document.getElementById('sjf-exam').value,10)||0
+  };
+  if (sys==='secondary'){ var cr=parseFloat(document.getElementById('sjf-credit').value); data.credit=isNaN(cr)?0:cr; }
+  var alert=document.getElementById('subject-modal-alert');
+  if (!data.code || !data.name){ alert.textContent='กรุณากรอกรหัสวิชาและชื่อวิชา'; alert.classList.add('show'); return; }
+  if (!window.fbAddSubject){ alert.textContent='ระบบยังโหลดไม่เสร็จ'; alert.classList.add('show'); return; }
+  var btn=document.getElementById('sjf-save-btn'); btn.disabled=true;
+  /* document id = system_code เพื่อกันรหัสซ้ำข้ามระดับ */
+  window.fbAddSubject(sys+'_'+data.code, data).then(function(){
+    btn.disabled=false; closeSubjectModal(); reloadSubjects();
+  }).catch(function(e){ btn.disabled=false; alert.textContent='บันทึกไม่สำเร็จ: '+e.message; alert.classList.add('show'); });
+}
+function deleteSubject(sys, code) {
+  if (!confirm('ต้องการลบรายวิชา '+code+' ใช่หรือไม่?')) return;
+  if (!window.fbDeleteSubject) return;
+  window.fbDeleteSubject(sys+'_'+code).then(function(){ reloadSubjects(); });
+}
+function reloadSubjects() {
+  if (!window.fbLoadSubjects) return;
+  window.fbLoadSubjects().then(function(arr){
+    if (window.onSubjectsLoaded) window.onSubjectsLoaded(arr);
+    renderSubjects();
+  });
+}
+
 function renderPp6() {
   var cid=document.getElementById('pp6-class').value;
   var c=classById(cid);
@@ -1343,6 +1489,21 @@ document.addEventListener('click', function(e){
   window.fbLoadClasses = loadClasses;
   window.fbAddClass = function(id, data){ return setDoc(doc(db, "Classes", id), data); };
   window.fbDeleteClass = function(id){ return deleteDoc(doc(db, "Classes", id)); };
+
+  /* รายวิชา (collection: subjects) */
+  async function loadSubjects(){
+    const snap = await getDocs(collection(db, "subjects"));
+    const arr = [];
+    snap.forEach(function(d){ const v = d.data(); arr.push(v); });
+    return arr;
+  }
+  loadSubjects().then(function(arr){
+    console.log("โหลดรายวิชาจาก Firestore:", arr.length, "วิชา");
+    if (window.onSubjectsLoaded) window.onSubjectsLoaded(arr);
+  }).catch(function(e){ console.warn("โหลดรายวิชาไม่สำเร็จ:", e); });
+  window.fbLoadSubjects = loadSubjects;
+  window.fbAddSubject = function(id, data){ return setDoc(doc(db, "subjects", id), data); };
+  window.fbDeleteSubject = function(id){ return deleteDoc(doc(db, "subjects", id)); };
 
   /* นักเรียน (collection: students) */
   async function loadStudents(){
