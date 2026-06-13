@@ -933,7 +933,7 @@ document.addEventListener('click', function(e){
 
   /* โหลดห้องเรียนจาก Firestore ทันทีที่เปิดเว็บ */
   async function loadClasses(){
-    const snap = await getDocs(collection(db, "classes"));
+    const snap = await getDocs(collection(db, "Classes"));
     const arr = [];
     snap.forEach(function(d){ const v = d.data(); arr.push({ id:d.id, name:v.name, level:v.level, system:v.system }); });
     return arr;
