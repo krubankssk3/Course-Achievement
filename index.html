@@ -352,6 +352,7 @@
         <a class="nav-link" data-pane="students" onclick="showPane('students', this)"><i class="ti ti-users"></i> ข้อมูลนักเรียน</a>
         <a class="nav-link" data-pane="pp5" onclick="showPane('pp5', this)"><i class="ti ti-clipboard-text"></i> บันทึก ปพ.5</a>
         <a class="nav-link" data-pane="pp6" onclick="showPane('pp6', this)"><i class="ti ti-file-certificate"></i> ออก ปพ.6</a>
+        <a class="nav-link" data-pane="assess" onclick="showPane('assess', this)"><i class="ti ti-checkup-list"></i> ประเมินคุณลักษณะ</a>
         <a class="nav-link" data-pane="theme" onclick="showPane('theme', this)"><i class="ti ti-palette"></i> ตั้งค่าโทนสี</a>
         <a class="nav-link" data-pane="developer" onclick="showPane('developer', this)"><i class="ti ti-code"></i> ผู้พัฒนา</a>
       </nav>
@@ -409,6 +410,20 @@
           <div class="panel">
             <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="publishReportCards()"><i class="ti ti-cloud-upload"></i> เผยแพร่ให้นักเรียนดู</button></div>
             <div class="panel-body"><div id="pp6-table"></div></div>
+          </div>
+        </section>
+
+        <!-- ประเมินคุณลักษณะ -->
+        <section class="pane" id="pane-assess">
+          <div class="page-title"><div><h2>ประเมินคุณลักษณะ</h2><p>ประเมินการอ่านคิดวิเคราะห์เขียน คุณลักษณะอันพึงประสงค์ และสมรรถนะสำคัญ</p></div></div>
+          <div class="selectors">
+            <div class="field"><label>ห้องเรียน</label><select id="as-class" onchange="onAssessClassChange()"></select></div>
+            <div class="field" id="as-term-wrap"><label>ภาคเรียน</label><select id="as-term" onchange="renderAssess()"><option value="1">ภาคเรียนที่ 1</option><option value="2">ภาคเรียนที่ 2</option></select></div>
+            <button class="btn btn-primary" onclick="saveAssess()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3 id="as-title">ผลการประเมิน</h3><span class="pill pill-ok">4 ระดับ: ดีเยี่ยม / ดี / ผ่าน / ไม่ผ่าน</span></div>
+            <div class="panel-body"><div id="as-table"></div></div>
           </div>
         </section>
 
@@ -531,19 +546,29 @@ var SUBJECTS = {
 var STUDENTS_DATA = [];
 /* ประกอบคะแนนจาก records กลับเข้าตัวนักเรียน เพื่อให้ฟังก์ชันคำนวณเดิมใช้งานได้ */
 function applyRecords(records) {
-  for (var i=0;i<STUDENTS_DATA.length;i++){ STUDENTS_DATA[i].terms=null; STUDENTS_DATA[i].y=null; }
+  for (var i=0;i<STUDENTS_DATA.length;i++){ STUDENTS_DATA[i].terms=null; STUDENTS_DATA[i].y=null; STUDENTS_DATA[i].assessTerms=null; STUDENTS_DATA[i].assessYear=null; }
   for (var r=0;r<records.length;r++){
-    var rec=records[r], sc=rec.scores||{};
+    var rec=records[r];
+    if (rec.subjectCode==='ASSESS'){
+      var as=rec.assess||{};
+      for (var aid in as){
+        if(!as.hasOwnProperty(aid)) continue;
+        var st2=findStudentById(aid); if(!st2) continue;
+        if (rec.term==='year'){ st2.assessYear=as[aid]; }
+        else { st2.assessTerms=st2.assessTerms||{}; st2.assessTerms[rec.term]=as[aid]; }
+      }
+      continue;
+    }
+    var sc=rec.scores||{};
     for (var sid in sc){
       if(!sc.hasOwnProperty(sid)) continue;
-      var stu=null;
-      for (var k=0;k<STUDENTS_DATA.length;k++) if(STUDENTS_DATA[k].id===sid){ stu=STUDENTS_DATA[k]; break; }
-      if(!stu) continue;
+      var stu=findStudentById(sid); if(!stu) continue;
       if (rec.term==='year'){ stu.y=stu.y||{}; stu.y[rec.subjectCode]=sc[sid]; }
       else { stu.terms=stu.terms||{}; stu.terms[rec.term]=stu.terms[rec.term]||{s:{}}; stu.terms[rec.term].s[rec.subjectCode]=sc[sid]; }
     }
   }
 }
+function findStudentById(id){ for (var k=0;k<STUDENTS_DATA.length;k++) if(STUDENTS_DATA[k].id===id) return STUDENTS_DATA[k]; return null; }
 /* โหลดนักเรียน + คะแนนของปีปัจจุบัน แล้ว render ใหม่ทั้งหมด */
 function loadAllData() {
   if (!window.fbLoadStudents) return;
@@ -553,9 +578,14 @@ function loadAllData() {
   }).then(function(records){
     applyRecords(records || []);
     if (document.getElementById('view-admin').classList.contains('active')) {
-      renderDashboard(); renderStudents(); renderPp5(); renderPp6();
+      renderDashboard(); renderStudents(); renderPp5(); renderPp6(); renderAssess();
     }
   }).catch(function(e){ console.warn("โหลดข้อมูลไม่สำเร็จ:", e); });
+}
+/* ระดับการประเมิน */
+function assessOf(stu, term) {
+  if (term==='year') return stu.assessYear||{read:'',char:'',comp:''};
+  return (stu.assessTerms&&stu.assessTerms[term])||{read:'',char:'',comp:''};
 }
 
 /* ============================================================
@@ -659,7 +689,7 @@ function publishOne(stu, c) {
             var tot=secTermTotal(stu,term,subs[i].code);
             arr.push({ code:subs[i].code, name:subs[i].name, credit:subs[i].credit, score:tot, grade:gradeOf(tot) });
           }
-          card.terms[term]={ subjects:arr, gpa:secGPA(stu,term), gpax:secGPAX(stu) };
+          card.terms[term]={ subjects:arr, gpa:secGPA(stu,term), gpax:secGPAX(stu), assess:assessOf(stu,term) };
         }
       }
     } else {
@@ -668,7 +698,7 @@ function publishOne(stu, c) {
         var sc=(yy[subsP[k].code]!=null)?yy[subsP[k].code]:0;
         arrP.push({ code:subsP[k].code, name:subsP[k].name, score:sc, grade:gradeOf(sc) });
       }
-      card.yearData={ subjects:arrP, gpa:priGPA(stu) };
+      card.yearData={ subjects:arrP, gpa:priGPA(stu), assess:assessOf(stu,'year') };
     }
     return window.fbSaveReportCard(hash, card);
   });
@@ -726,7 +756,8 @@ function renderPublicReport(term){
       +'<tfoot><tr><td colspan="2">รวม / เฉลี่ยภาคนี้</td><td class="num">'+fmt(tc,1)+'</td><td class="num">—</td><td class="num">'+fmt(t.gpa,2)+'</td></tr></tfoot></table>'
       +'<div class="summary-strip"><div class="sum-box"><div class="k">เฉลี่ยภาคนี้ (GPA)</div><div class="v">'+fmt(t.gpa,2)+'</div></div>'
       +'<div class="sum-box"><div class="k">เฉลี่ยสะสม (GPAX)</div><div class="v">'+fmt(t.gpax,2)+'</div></div>'
-      +'<div class="sum-box"><div class="k">หน่วยกิตภาคนี้</div><div class="v">'+fmt(tc,1)+'</div></div></div></div>';
+      +'<div class="sum-box"><div class="k">หน่วยกิตภาคนี้</div><div class="v">'+fmt(tc,1)+'</div></div></div>'
+      +assessHtml(t.assess)+'</div>';
   } else {
     document.getElementById('report-selectors').innerHTML='';
     var d=card.yearData, rowsP="";
@@ -741,8 +772,17 @@ function renderPublicReport(term){
       +'<tfoot><tr><td colspan="2">ผลการเรียนเฉลี่ยทั้งปี</td><td class="num">—</td><td class="num">'+fmt(d.gpa,2)+'</td></tr></tfoot></table>'
       +'<div class="summary-strip"><div class="sum-box"><div class="k">ผลการเรียนเฉลี่ย</div><div class="v">'+fmt(d.gpa,2)+'</div></div>'
       +'<div class="sum-box"><div class="k">จำนวนรายวิชา</div><div class="v">'+d.subjects.length+'</div></div>'
-      +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+card.year+'</div></div></div></div>';
+      +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+card.year+'</div></div></div>'
+      +assessHtml(d.assess)+'</div>';
   }
+}
+function assessHtml(a){
+  a=a||{};
+  return '<div class="assess-grid">'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+(a.read||'-')+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+(a.char||'-')+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+(a.comp||'-')+'</b></div>'
+    +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div>';
 }
 
 function yearOptions(sel) {
@@ -793,7 +833,7 @@ function renderSecReport(stu, cls, year, term, head) {
       +'<td class="num">'+fmt(subs[i].credit,1)+'</td><td class="num">'+tt+'</td>'
       +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tt),1)+'</span></td></tr>';
   }
-  var t=(stu.terms&&stu.terms[term])||{read:'-',char:'-',comp:'-'};
+  var t=assessOf(stu, term);
   var html=head+'<div class="paper-inner">'
     +'<div class="stu-meta">'
     +'<div><span>ชื่อ - สกุล:</span> <b>'+stu.name+'</b></div>'
@@ -808,9 +848,9 @@ function renderSecReport(stu, cls, year, term, head) {
     +'<div class="sum-box"><div class="k">เฉลี่ยสะสม (GPAX)</div><div class="v">'+fmt(secGPAX(stu),2)+'</div></div>'
     +'<div class="sum-box"><div class="k">หน่วยกิตภาคนี้</div><div class="v">'+fmt(totalCredit,1)+'</div></div></div>'
     +'<div class="assess-grid">'
-    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+t.read+'</b></div>'
-    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+t.char+'</b></div>'
-    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+t.comp+'</b></div>'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+(t.read||'-')+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+(t.char||'-')+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+(t.comp||'-')+'</b></div>'
     +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div></div>';
   document.getElementById('report-paper').innerHTML=html;
 }
@@ -837,9 +877,9 @@ function renderPriReport(stu, cls, year, head) {
     +'<div class="sum-box"><div class="k">จำนวนรายวิชา</div><div class="v">'+subs.length+'</div></div>'
     +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+year+'</div></div></div>'
     +'<div class="assess-grid">'
-    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+(stu.read||'-')+'</b></div>'
-    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+(stu.char||'-')+'</b></div>'
-    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+(stu.comp||'-')+'</b></div>'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+((stu.assessYear&&stu.assessYear.read)||'-')+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+((stu.assessYear&&stu.assessYear.char)||'-')+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+((stu.assessYear&&stu.assessYear.comp)||'-')+'</b></div>'
     +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div></div>';
   document.getElementById('report-paper').innerHTML=html;
 }
@@ -881,13 +921,14 @@ function onYearChange() {
   loadAllData();
 }
 function refreshAdmin() {
-  renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6();
+  renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6(); onAssessClassChange();
 }
 function initAdmin() {
   document.getElementById('year-select').innerHTML=yearOptions(CURRENT_YEAR);
   document.getElementById('stu-class').innerHTML=classOptions('m1-1');
   document.getElementById('pp5-class').innerHTML=classOptions('m1-1');
   document.getElementById('pp6-class').innerHTML=classOptions('m1-1');
+  document.getElementById('as-class').innerHTML=classOptions('m1-1');
   refreshAdmin();
   renderSwatches(); renderThemeMenu();
 }
@@ -1114,6 +1155,58 @@ function savePp5() {
   var recordId=CURRENT_YEAR+'_'+cid+'_'+code+'_'+term;
   window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:code, term:term, scores:scores })
     .then(function(){ alert('บันทึกคะแนนเรียบร้อยแล้ว'); loadAllData(); })
+    .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
+
+/* ---- ประเมินคุณลักษณะ (อ่านคิดวิเคราะห์เขียน / คุณลักษณะ / สมรรถนะ) ---- */
+var ASSESS_LEVELS=["ดีเยี่ยม","ดี","ผ่าน","ไม่ผ่าน"];
+function levelOptions(sel){
+  var o='<option value="">-</option>';
+  for (var i=0;i<ASSESS_LEVELS.length;i++){ o+='<option value="'+ASSESS_LEVELS[i]+'"'+(ASSESS_LEVELS[i]===sel?' selected':'')+'>'+ASSESS_LEVELS[i]+'</option>'; }
+  return o;
+}
+function onAssessClassChange() {
+  var cid=document.getElementById('as-class').value;
+  var c=classById(cid);
+  document.getElementById('as-term-wrap').style.display=(c.system==='secondary')?'block':'none';
+  renderAssess();
+}
+function renderAssess() {
+  var cid=document.getElementById('as-class').value;
+  var c=classById(cid);
+  var term=(c.system==='secondary')?document.getElementById('as-term').value:'year';
+  document.getElementById('as-title').textContent='ผลการประเมิน — '+c.name+(c.system==='secondary'?(' · ภาคเรียนที่ '+term):' · ทั้งปี');
+  var list=rosterOf(cid);
+  if (!list.length){
+    document.getElementById('as-table').innerHTML='<div class="empty"><i class="ti ti-clipboard-off"></i><p>ยังไม่มีนักเรียนในห้องนี้</p></div>';
+    return;
+  }
+  var rows="";
+  for (var i=0;i<list.length;i++){
+    var st=list[i], a=assessOf(st, term);
+    rows+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
+      +'<td><select class="doc-sel" data-sid="'+st.id+'" data-k="read">'+levelOptions(a.read)+'</select></td>'
+      +'<td><select class="doc-sel" data-sid="'+st.id+'" data-k="char">'+levelOptions(a.char)+'</select></td>'
+      +'<td><select class="doc-sel" data-sid="'+st.id+'" data-k="comp">'+levelOptions(a.comp)+'</select></td></tr>';
+  }
+  document.getElementById('as-table').innerHTML=
+    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>อ่านคิดวิเคราะห์เขียน</th><th>คุณลักษณะอันพึงประสงค์</th><th>สมรรถนะสำคัญ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function saveAssess() {
+  var cid=document.getElementById('as-class').value;
+  var c=classById(cid);
+  var term=(c.system==='secondary')?document.getElementById('as-term').value:'year';
+  if (!window.fbSaveRecord){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  var assess={};
+  var sels=document.querySelectorAll('#as-table select.doc-sel');
+  for (var i=0;i<sels.length;i++){
+    var sid=sels[i].getAttribute('data-sid'), key=sels[i].getAttribute('data-k');
+    if(!assess[sid]) assess[sid]={read:'',char:'',comp:''};
+    assess[sid][key]=sels[i].value;
+  }
+  var recordId=CURRENT_YEAR+'_'+cid+'_ASSESS_'+term;
+  window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:'ASSESS', term:term, assess:assess })
+    .then(function(){ alert('บันทึกผลการประเมินเรียบร้อยแล้ว'); loadAllData(); })
     .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
 }
 
