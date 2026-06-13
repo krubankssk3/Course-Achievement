@@ -191,6 +191,15 @@
   .dev-meta .item .k { font-size:13px; color:var(--muted); margin-top:6px; }
   .dev-meta .item .v { font-family:'Kanit',sans-serif; color:var(--ink); font-size:15px; }
 
+  .modal-overlay { position:fixed; inset:0; background:rgba(22,49,78,.5); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.25); width:100%; max-width:460px; overflow:hidden; }
+  .modal-head { padding:18px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .modal-head h3 { margin:0; font-size:18px; }
+  .modal-head .x { background:none; border:none; cursor:pointer; color:var(--muted); font-size:24px; line-height:1; }
+  .modal-body { padding:20px 24px; }
+  .modal-foot { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+
   footer.app-foot { text-align: center; padding: 18px; font-size: 13px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
   .pub-foot { background: var(--ink); color: rgba(255,255,255,.6); text-align: center; padding: 20px; font-size: 13px; }
 
@@ -358,7 +367,7 @@
             <div class="stat"><div class="ic"><i class="ti ti-book"></i></div><div class="num" id="st-subjects">0</div><div class="lab">รายวิชา</div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>ห้องเรียนในระบบ</h3><span class="pill pill-ok">เห็นเฉพาะชั้นที่รับผิดชอบ</span></div>
+            <div class="panel-head"><h3>ห้องเรียนในระบบ</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="openClassModal('add')"><i class="ti ti-plus"></i> เพิ่มห้องเรียน</button></div>
             <div class="panel-body"><div id="dash-classes"></div></div>
           </div>
         </section>
@@ -429,6 +438,25 @@
 
       </main>
     </div>
+
+    <!-- Modal: เพิ่ม/แก้ห้องเรียน -->
+    <div class="modal-overlay" id="class-modal">
+      <div class="modal">
+        <div class="modal-head"><h3 id="class-modal-title">เพิ่มห้องเรียน</h3><button class="x" onclick="closeClassModal()">&times;</button></div>
+        <div class="modal-body">
+          <div id="class-modal-alert" class="alert alert-error"></div>
+          <div class="field"><label>รหัสห้อง (ใช้อ้างอิงในระบบ)</label><input id="cls-id" type="text" placeholder="เช่น m2-1" /><div class="hint">ตัวอังกฤษ-ตัวเลข-ขีดกลาง ห้ามเว้นวรรค และเปลี่ยนภายหลังไม่ได้</div></div>
+          <div class="field"><label>ชื่อห้อง</label><input id="cls-name" type="text" placeholder="เช่น ม.2/1" /></div>
+          <div class="field"><label>ระดับชั้น (ชื่อเต็ม)</label><input id="cls-level" type="text" placeholder="เช่น มัธยมศึกษาปีที่ 2/1" /></div>
+          <div class="field"><label>รูปแบบการเก็บผล</label><select id="cls-system"><option value="secondary">มัธยม (แยกภาคเรียน + หน่วยกิต)</option><option value="primary">ประถม (ผลการเรียนทั้งปี)</option></select></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeClassModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="cls-save-btn" onclick="saveClass()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
   </div>
 </section>
@@ -748,10 +776,56 @@ function renderDashboard() {
     var sysLabel=(c.system==='secondary')?'มัธยม · แยกภาคเรียน 1-2 · หน่วยกิต':'ประถม · ผลการเรียนทั้งปี';
     rows+='<tr><td>'+c.name+'</td><td>'+c.level+'</td>'
       +'<td><span class="pill pill-sys">'+sysLabel+'</span></td>'
-      +'<td class="num">'+rosterOf(c.id).length+'</td></tr>';
+      +'<td class="num">'+rosterOf(c.id).length+'</td>'
+      +'<td class="num"><button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="openClassModal(\'edit\',\''+c.id+'\')"><i class="ti ti-edit"></i></button> '
+      +'<button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="deleteClass(\''+c.id+'\')"><i class="ti ti-trash"></i></button></td></tr>';
   }
   document.getElementById('dash-classes').innerHTML=
-    '<table class="data"><thead><tr><th>ห้อง</th><th>ระดับชั้น</th><th>รูปแบบการเก็บผล</th><th class="num">นักเรียน</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="data"><thead><tr><th>ห้อง</th><th>ระดับชั้น</th><th>รูปแบบการเก็บผล</th><th class="num">นักเรียน</th><th class="num">จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+/* ---- จัดการห้องเรียน (เขียนลง Firestore) ---- */
+function openClassModal(mode, id) {
+  var alert=document.getElementById('class-modal-alert'); alert.classList.remove('show');
+  var idInput=document.getElementById('cls-id');
+  if (mode==='edit') {
+    var c=classById(id);
+    document.getElementById('class-modal-title').textContent='แก้ไขห้องเรียน';
+    idInput.value=c.id; idInput.disabled=true;
+    document.getElementById('cls-name').value=c.name;
+    document.getElementById('cls-level').value=c.level;
+    document.getElementById('cls-system').value=c.system;
+  } else {
+    document.getElementById('class-modal-title').textContent='เพิ่มห้องเรียน';
+    idInput.value=''; idInput.disabled=false;
+    document.getElementById('cls-name').value='';
+    document.getElementById('cls-level').value='';
+    document.getElementById('cls-system').value='secondary';
+  }
+  document.getElementById('class-modal').classList.add('open');
+}
+function closeClassModal() { document.getElementById('class-modal').classList.remove('open'); }
+function saveClass() {
+  var id=document.getElementById('cls-id').value.trim();
+  var name=document.getElementById('cls-name').value.trim();
+  var level=document.getElementById('cls-level').value.trim();
+  var system=document.getElementById('cls-system').value;
+  var alert=document.getElementById('class-modal-alert');
+  if (!id || !name || !level) { alert.textContent='กรุณากรอกข้อมูลให้ครบทุกช่อง'; alert.classList.add('show'); return; }
+  if (!window.fbAddClass) { alert.textContent='ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'; alert.classList.add('show'); return; }
+  var btn=document.getElementById('cls-save-btn'); btn.disabled=true;
+  window.fbAddClass(id, { name:name, level:level, system:system }).then(function(){
+    btn.disabled=false; closeClassModal(); reloadClasses();
+  }).catch(function(e){ btn.disabled=false; alert.textContent='บันทึกไม่สำเร็จ: '+e.message; alert.classList.add('show'); });
+}
+function deleteClass(id) {
+  if (!confirm('ต้องการลบห้อง "'+id+'" ใช่หรือไม่?')) return;
+  if (!window.fbDeleteClass) return;
+  window.fbDeleteClass(id).then(function(){ reloadClasses(); });
+}
+function reloadClasses() {
+  if (!window.fbLoadClasses) return;
+  window.fbLoadClasses().then(function(arr){ CLASSES=arr; initAdmin(); });
 }
 
 function renderStudents() {
@@ -912,7 +986,7 @@ document.addEventListener('click', function(e){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCEJNg2j3L3M58W_IKS20WmlpxqBGZAqT8",
@@ -942,6 +1016,11 @@ document.addEventListener('click', function(e){
     console.log("โหลดห้องเรียนจาก Firestore:", arr.length, "ห้อง");
     if (window.onClassesLoaded) window.onClassesLoaded(arr);
   }).catch(function(e){ console.warn("โหลดห้องเรียนไม่สำเร็จ:", e); });
+
+  /* การเขียน/ลบห้องเรียนลง Firestore */
+  window.fbLoadClasses = loadClasses;
+  window.fbAddClass = function(id, data){ return setDoc(doc(db, "Classes", id), data); };
+  window.fbDeleteClass = function(id){ return deleteDoc(doc(db, "Classes", id)); };
 </script>
 </body>
 </html>
