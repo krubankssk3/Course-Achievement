@@ -407,7 +407,7 @@
             <div class="field"><label>ห้องเรียน</label><select id="pp6-class" onchange="renderPp6()"></select></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3></div>
+            <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="publishReportCards()"><i class="ti ti-cloud-upload"></i> เผยแพร่ให้นักเรียนดู</button></div>
             <div class="panel-body"><div id="pp6-table"></div></div>
           </div>
         </section>
@@ -620,14 +620,130 @@ function findStudent(cid, dob) {
   }
   return null;
 }
-function studentLogin() {
-  /* ส่วนนักเรียนดูเกรดจะทำในเฟสถัดไปด้วยกลไก hash ที่ปลอดภัย
-     ตอนนี้ collection students ถูกปิดด้วย Security Rules จึงค้นจากฝั่ง public (ไม่ล็อกอิน) ไม่ได้ */
-  var alert=document.getElementById('stu-alert');
-  alert.textContent='ส่วนตรวจสอบผลการเรียนสำหรับนักเรียนกำลังพัฒนา จะเปิดให้บริการเร็ว ๆ นี้';
-  alert.classList.add('show');
-}
 function backFromReport(){ go(REPORT_BACK); }
+
+/* ============================================================
+   นักเรียนดูเกรด (public) ผ่านกลไก hash — ปลอดภัยตาม PDPA
+   ============================================================ */
+function sha256Hex(str) {
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function(buf){
+    var arr = Array.prototype.slice.call(new Uint8Array(buf));
+    return arr.map(function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
+  });
+}
+
+/* ครูเผยแพร่ ปพ.6 ของห้องที่เลือก (ปีปัจจุบัน) ให้นักเรียนเปิดดูได้ */
+function publishReportCards() {
+  var cid=document.getElementById('pp6-class').value;
+  var c=classById(cid);
+  var list=rosterOf(cid);
+  if (!list.length){ alert('ยังไม่มีนักเรียนในห้องนี้'); return; }
+  if (!window.fbSaveReportCard){ alert('ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'); return; }
+  if (!confirm('เผยแพร่ ปพ.6 ของห้อง '+c.name+' ปีการศึกษา '+CURRENT_YEAR+' ให้นักเรียนเปิดดูได้ใช่หรือไม่?')) return;
+  var tasks=[];
+  for (var i=0;i<list.length;i++) tasks.push(publishOne(list[i], c));
+  Promise.all(tasks)
+    .then(function(){ alert('เผยแพร่เรียบร้อย ('+list.length+' คน) นักเรียนเปิดดูได้แล้วที่หน้าแรก'); })
+    .catch(function(e){ alert('เผยแพร่ไม่สำเร็จ: '+e.message); });
+}
+function publishOne(stu, c) {
+  return sha256Hex(stu.cid+'|'+stu.dob+'|'+CURRENT_YEAR).then(function(hash){
+    var card={ year:CURRENT_YEAR, system:c.system, name:stu.name, classLevel:c.level };
+    if (c.system==='secondary'){
+      card.terms={};
+      for (var t=1;t<=2;t++){
+        var term=String(t);
+        if (stu.terms && stu.terms[term]){
+          var subs=SUBJECTS.secondary, arr=[];
+          for (var i=0;i<subs.length;i++){
+            var tot=secTermTotal(stu,term,subs[i].code);
+            arr.push({ code:subs[i].code, name:subs[i].name, credit:subs[i].credit, score:tot, grade:gradeOf(tot) });
+          }
+          card.terms[term]={ subjects:arr, gpa:secGPA(stu,term), gpax:secGPAX(stu) };
+        }
+      }
+    } else {
+      var subsP=SUBJECTS.primary, arrP=[], yy=stu.y||{};
+      for (var k=0;k<subsP.length;k++){
+        var sc=(yy[subsP[k].code]!=null)?yy[subsP[k].code]:0;
+        arrP.push({ code:subsP[k].code, name:subsP[k].name, score:sc, grade:gradeOf(sc) });
+      }
+      card.yearData={ subjects:arrP, gpa:priGPA(stu) };
+    }
+    return window.fbSaveReportCard(hash, card);
+  });
+}
+
+/* นักเรียนกรอกเลขบัตร+วันเกิด+ปี แล้วเปิด ปพ.6 ของตัวเอง */
+var PUBLIC_CARD=null;
+function studentLogin() {
+  var id=document.getElementById('stu-id').value.trim();
+  var dob=document.getElementById('stu-dob').value;
+  var year=document.getElementById('stu-year').value;
+  var alert=document.getElementById('stu-alert');
+  if (!id || !dob){ alert.textContent='กรุณากรอกเลขบัตรประชาชนและวันเกิด'; alert.classList.add('show'); return; }
+  if (!window.fbGetReportCard){ alert.textContent='ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'; alert.classList.add('show'); return; }
+  sha256Hex(id+'|'+dob+'|'+year).then(function(hash){
+    return window.fbGetReportCard(hash);
+  }).then(function(card){
+    if (!card){ alert.textContent='ไม่พบข้อมูล ตรวจสอบเลขบัตร/วันเกิด/ปี หรืออาจยังไม่มีการเผยแพร่ผลการเรียน'; alert.classList.add('show'); return; }
+    alert.classList.remove('show');
+    PUBLIC_CARD=card; REPORT_BACK='student-login';
+    renderPublicReport(card.system==='secondary' ? firstTerm(card) : 'year');
+    go('student-result');
+  }).catch(function(e){ alert.textContent='เกิดข้อผิดพลาด: '+e.message; alert.classList.add('show'); });
+}
+function firstTerm(card){ return (card.terms && card.terms['1']) ? '1' : '2'; }
+function reReportPublic(){
+  var tEl=document.getElementById('rp-term');
+  renderPublicReport(tEl?tEl.value:'year');
+}
+function publicHead(card){
+  return '<div class="paper-head">'
+    +'<img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />'
+    +'<h2>'+SCHOOL.name+'</h2><div class="sub">'+SCHOOL.area+'</div>'
+    +'<div class="doc-type">ปพ.6 — รายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล</div></div>'
+    +'<hr class="gold-rule" style="margin:22px 40px 0" />';
+}
+function renderPublicReport(term){
+  var card=PUBLIC_CARD, head=publicHead(card);
+  if (card.system==='secondary'){
+    var sel='<select id="rp-term" class="doc-sel" onchange="reReportPublic()">';
+    if (card.terms['1']) sel+='<option value="1"'+(term==='1'?' selected':'')+'>ภาคเรียนที่ 1</option>';
+    if (card.terms['2']) sel+='<option value="2"'+(term==='2'?' selected':'')+'>ภาคเรียนที่ 2</option>';
+    sel+='</select>';
+    document.getElementById('report-selectors').innerHTML=sel;
+    var t=card.terms[term]; if(!t){ document.getElementById('report-paper').innerHTML=head+'<div class="doc-empty"><i class="ti ti-folder-off"></i><p>ยังไม่มีข้อมูลภาคเรียนนี้</p></div>'; return; }
+    var rows="", tc=0;
+    for (var i=0;i<t.subjects.length;i++){ var s=t.subjects[i]; tc+=s.credit;
+      rows+='<tr><td>'+s.code+'</td><td>'+s.name+'</td><td class="num">'+fmt(s.credit,1)+'</td><td class="num">'+s.score+'</td><td class="num"><span class="pill pill-grade">'+fmt(s.grade,1)+'</span></td></tr>';
+    }
+    document.getElementById('report-paper').innerHTML=head+'<div class="paper-inner">'
+      +'<div class="stu-meta"><div><span>ชื่อ - สกุล:</span> <b>'+card.name+'</b></div>'
+      +'<div><span>ระดับชั้น:</span> '+card.classLevel+'</div>'
+      +'<div><span>ภาคเรียน:</span> ภาคเรียนที่ '+term+' ปีการศึกษา '+card.year+'</div></div>'
+      +'<table class="grades"><thead><tr><th>รหัสวิชา</th><th>รายวิชา</th><th class="num">หน่วยกิต</th><th class="num">คะแนน</th><th class="num">ผลการเรียน</th></tr></thead><tbody>'+rows+'</tbody>'
+      +'<tfoot><tr><td colspan="2">รวม / เฉลี่ยภาคนี้</td><td class="num">'+fmt(tc,1)+'</td><td class="num">—</td><td class="num">'+fmt(t.gpa,2)+'</td></tr></tfoot></table>'
+      +'<div class="summary-strip"><div class="sum-box"><div class="k">เฉลี่ยภาคนี้ (GPA)</div><div class="v">'+fmt(t.gpa,2)+'</div></div>'
+      +'<div class="sum-box"><div class="k">เฉลี่ยสะสม (GPAX)</div><div class="v">'+fmt(t.gpax,2)+'</div></div>'
+      +'<div class="sum-box"><div class="k">หน่วยกิตภาคนี้</div><div class="v">'+fmt(tc,1)+'</div></div></div></div>';
+  } else {
+    document.getElementById('report-selectors').innerHTML='';
+    var d=card.yearData, rowsP="";
+    for (var k=0;k<d.subjects.length;k++){ var sp=d.subjects[k];
+      rowsP+='<tr><td>'+sp.code+'</td><td>'+sp.name+'</td><td class="num">'+sp.score+'</td><td class="num"><span class="pill pill-grade">'+fmt(sp.grade,1)+'</span></td></tr>';
+    }
+    document.getElementById('report-paper').innerHTML=head+'<div class="paper-inner">'
+      +'<div class="stu-meta"><div><span>ชื่อ - สกุล:</span> <b>'+card.name+'</b></div>'
+      +'<div><span>ระดับชั้น:</span> '+card.classLevel+'</div>'
+      +'<div><span>ปีการศึกษา:</span> '+card.year+' (ผลการเรียนทั้งปี)</div></div>'
+      +'<table class="grades"><thead><tr><th>รหัสวิชา</th><th>รายวิชา</th><th class="num">คะแนน</th><th class="num">ผลการเรียน</th></tr></thead><tbody>'+rowsP+'</tbody>'
+      +'<tfoot><tr><td colspan="2">ผลการเรียนเฉลี่ยทั้งปี</td><td class="num">—</td><td class="num">'+fmt(d.gpa,2)+'</td></tr></tfoot></table>'
+      +'<div class="summary-strip"><div class="sum-box"><div class="k">ผลการเรียนเฉลี่ย</div><div class="v">'+fmt(d.gpa,2)+'</div></div>'
+      +'<div class="sum-box"><div class="k">จำนวนรายวิชา</div><div class="v">'+d.subjects.length+'</div></div>'
+      +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+card.year+'</div></div></div></div>';
+  }
+}
 
 function yearOptions(sel) {
   var o="";
@@ -1081,7 +1197,7 @@ document.addEventListener('click', function(e){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCEJNg2j3L3M58W_IKS20WmlpxqBGZAqT8",
@@ -1139,6 +1255,14 @@ document.addEventListener('click', function(e){
   }
   window.fbLoadRecords = loadRecords;
   window.fbSaveRecord = function(id, data){ return setDoc(doc(db, "records", id), data); };
+
+  /* สำเนา ปพ.6 สำหรับนักเรียน (collection: report_cards) — document id = hash(เลขบัตร|วันเกิด|ปี)
+     อ่านได้เฉพาะเมื่อรู้ id เป๊ะ (get) แต่ค้นทั้งก้อนไม่ได้ (list ปิด) ตาม Security Rules */
+  window.fbGetReportCard = async function(hash){
+    const snap = await getDoc(doc(db, "report_cards", hash));
+    return snap.exists() ? snap.data() : null;
+  };
+  window.fbSaveReportCard = function(hash, data){ return setDoc(doc(db, "report_cards", hash), data); };
 </script>
 </body>
 </html>
