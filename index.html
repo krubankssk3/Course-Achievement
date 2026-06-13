@@ -375,7 +375,7 @@
         <!-- ข้อมูลนักเรียน -->
         <section class="pane" id="pane-students">
           <div class="page-title"><div><h2>ข้อมูลนักเรียน</h2><p>ในระบบจริงครูจะเห็นเฉพาะห้องที่รับผิดชอบ</p></div>
-            <button class="btn btn-primary"><i class="ti ti-plus"></i> เพิ่มนักเรียน</button></div>
+            <button class="btn btn-primary" onclick="openStudentModal('add')"><i class="ti ti-plus"></i> เพิ่มนักเรียน</button></div>
           <div class="selectors">
             <div class="field"><label>ห้องเรียน</label><select id="stu-class" onchange="renderStudents()"></select></div>
           </div>
@@ -457,6 +457,26 @@
       </div>
     </div>
 
+    <!-- Modal: เพิ่ม/แก้นักเรียน -->
+    <div class="modal-overlay" id="student-modal">
+      <div class="modal">
+        <div class="modal-head"><h3 id="student-modal-title">เพิ่มนักเรียน</h3><button class="x" onclick="closeStudentModal()">&times;</button></div>
+        <div class="modal-body">
+          <div id="student-modal-alert" class="alert alert-error"></div>
+          <div class="field"><label>ห้องเรียน</label><select id="stf-class"></select></div>
+          <div class="field"><label>เลขที่</label><input id="stf-no" type="number" min="1" placeholder="เช่น 1" /></div>
+          <div class="field"><label>ชื่อ - สกุล</label><input id="stf-name" type="text" placeholder="เช่น เด็กชายธนกร ใจดี" /></div>
+          <div class="field"><label>เลขประจำตัวนักเรียน</label><input id="stf-sid" type="text" placeholder="เช่น 12345" /></div>
+          <div class="field"><label>เลขบัตรประชาชน (13 หลัก)</label><input id="stf-cid" type="text" inputmode="numeric" maxlength="13" placeholder="ใช้ยืนยันตัวตนตอนดูเกรด" /></div>
+          <div class="field"><label>วันเกิด</label><input id="stf-dob" type="date" /></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeStudentModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="stf-save-btn" onclick="saveStudent()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
   </div>
 </section>
@@ -506,32 +526,14 @@ var SUBJECTS = {
   ]
 };
 
-/* นักเรียนของปี 2568 — มัธยม: terms{1,2}.s[code]=[เก็บ,กลางภาค,ปลายภาค] ; ประถม: y[code]=คะแนนรวมทั้งปี */
-var ROSTER = {
-  "m1-1": [
-    { no:1, name:"เด็กชายธนกร ใจดี", sid:"12345", cid:"1234567890123", dob:"2555-05-10",
-      terms:{
-        "1":{ read:"ดี", char:"ดีเยี่ยม", comp:"ผ่าน",
-              s:{ "ท21101":[52,17,18],"ค21101":[55,18,19],"ว21101":[48,15,16],"ส21101":[50,17,17],"อ21101":[40,13,14],"พ21101":[56,18,18],"ศ21101":[51,16,17],"ง21101":[49,16,16] } },
-        "2":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
-              s:{ "ท21101":[54,18,18],"ค21101":[57,19,19],"ว21101":[50,16,17],"ส21101":[52,17,18],"อ21101":[44,14,15],"พ21101":[57,18,19],"ศ21101":[53,17,17],"ง21101":[51,17,17] } }
-      } },
-    { no:2, name:"เด็กหญิงปุณยาพร แก้วใส", sid:"12346", cid:"2345678901234", dob:"2555-08-22",
-      terms:{
-        "1":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
-              s:{ "ท21101":[57,19,19],"ค21101":[58,19,20],"ว21101":[54,18,18],"ส21101":[56,18,19],"อ21101":[55,18,18],"พ21101":[58,19,19],"ศ21101":[54,18,18],"ง21101":[55,18,18] } },
-        "2":{ read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
-              s:{ "ท21101":[58,19,20],"ค21101":[59,20,20],"ว21101":[56,19,19],"ส21101":[57,19,19],"อ21101":[56,19,19],"พ21101":[58,19,20],"ศ21101":[55,18,19],"ง21101":[56,19,19] } }
-      } }
-  ],
-  "p6-1": [
-    { no:1, name:"เด็กชายกิตติพงษ์ ศรีสุข", sid:"60101", cid:"5678901234567", dob:"2557-03-12",
-      read:"ดี", char:"ดีเยี่ยม", comp:"ผ่าน",
-      y:{ "ท16101":78,"ค16101":82,"ว16101":71,"ส16101":76,"อ16101":68,"พ16101":85,"ศ16101":80,"ง16101":74 } },
-    { no:2, name:"เด็กหญิงณัฐธิดา พูนทรัพย์", sid:"60102", cid:"6789012345678", dob:"2557-07-25",
-      read:"ดีเยี่ยม", char:"ดีเยี่ยม", comp:"ผ่าน",
-      y:{ "ท16101":88,"ค16101":85,"ว16101":83,"ส16101":86,"อ16101":80,"พ16101":90,"ศ16101":84,"ง16101":82 } }
-  ]
+/* นักเรียนทั้งหมด โหลดจาก Firestore — แต่ละคน: {id,name,sid,no,cid,dob,classId,year}
+   (คะแนนจะแยกไปเก็บใน records ในเฟสถัดไป จึงยังไม่มี terms/y ตอนนี้) */
+var STUDENTS_DATA = [];
+window.onStudentsLoaded = function(arr) {
+  STUDENTS_DATA = arr || [];
+  if (document.getElementById('view-admin').classList.contains('active')) {
+    renderDashboard(); renderStudents(); renderPp5(); renderPp6();
+  }
 };
 
 /* ============================================================
@@ -549,11 +551,11 @@ function gradeOf(total) {
 }
 function fmt(n, d) { return Number(n).toFixed(d === undefined ? 2 : d); }
 function classById(id) { for (var i=0;i<CLASSES.length;i++) if (CLASSES[i].id===id) return CLASSES[i]; return null; }
-function rosterOf(id) { return (CURRENT_YEAR === DATA_YEAR) ? (ROSTER[id] || []) : []; }
-function hasData() { return CURRENT_YEAR === DATA_YEAR; }
+function rosterOf(id) { return STUDENTS_DATA.filter(function(s){ return s.classId===id && s.year===CURRENT_YEAR; }); }
+function hasData() { for (var i=0;i<STUDENTS_DATA.length;i++) if (STUDENTS_DATA[i].year===CURRENT_YEAR) return true; return false; }
 
 /* มัธยม */
-function secTermTotal(stu, term, code) { var t=stu.terms[term]; if(!t||!t.s[code]) return 0; var a=t.s[code]; return a[0]+a[1]+a[2]; }
+function secTermTotal(stu, term, code) { var t=stu.terms&&stu.terms[term]; if(!t||!t.s||!t.s[code]) return 0; var a=t.s[code]; return a[0]+a[1]+a[2]; }
 function secGPA(stu, term) {
   var subs=SUBJECTS.secondary, sg=0, sc=0;
   for (var i=0;i<subs.length;i++){ var tt=secTermTotal(stu,term,subs[i].code); sg+=gradeOf(tt)*subs[i].credit; sc+=subs[i].credit; }
@@ -561,14 +563,15 @@ function secGPA(stu, term) {
 }
 function secGPAX(stu) {
   var subs=SUBJECTS.secondary, sg=0, sc=0;
+  if (!stu.terms) return 0;
   for (var tk in stu.terms){ if(!stu.terms.hasOwnProperty(tk)) continue;
     for (var i=0;i<subs.length;i++){ var tt=secTermTotal(stu,tk,subs[i].code); sg+=gradeOf(tt)*subs[i].credit; sc+=subs[i].credit; } }
   return sc ? sg/sc : 0;
 }
 /* ประถม */
 function priGPA(stu) {
-  var subs=SUBJECTS.primary, sum=0, n=0;
-  for (var i=0;i<subs.length;i++){ var sc=stu.y[subs[i].code]; if(sc==null) continue; sum+=gradeOf(sc); n++; }
+  var subs=SUBJECTS.primary, yy=stu.y||{}, sum=0, n=0;
+  for (var i=0;i<subs.length;i++){ var sc=yy[subs[i].code]; if(sc==null) continue; sum+=gradeOf(sc); n++; }
   return n ? sum/n : 0;
 }
 
@@ -589,25 +592,18 @@ var VIEW_CTX = null;      /* {stu, cls} */
 var REPORT_BACK = 'student-login';
 
 function findStudent(cid, dob) {
-  for (var i=0;i<CLASSES.length;i++){
-    var list=ROSTER[CLASSES[i].id]||[];
-    for (var j=0;j<list.length;j++){
-      if (list[j].cid===cid && list[j].dob===dob) return { stu:list[j], cls:CLASSES[i] };
-    }
+  for (var i=0;i<STUDENTS_DATA.length;i++){
+    var s=STUDENTS_DATA[i];
+    if (s.cid===cid && s.dob===dob) return { stu:s, cls:classById(s.classId) };
   }
   return null;
 }
 function studentLogin() {
-  var id=document.getElementById('stu-id').value.trim();
-  var dob=document.getElementById('stu-dob').value;
-  var year=document.getElementById('stu-year').value;
+  /* ส่วนนักเรียนดูเกรดจะทำในเฟสถัดไปด้วยกลไก hash ที่ปลอดภัย
+     ตอนนี้ collection students ถูกปิดด้วย Security Rules จึงค้นจากฝั่ง public (ไม่ล็อกอิน) ไม่ได้ */
   var alert=document.getElementById('stu-alert');
-  var found=findStudent(id, dob);
-  if (!found){ alert.classList.add('show'); return; }
-  alert.classList.remove('show');
-  VIEW_CTX=found; REPORT_BACK='student-login';
-  renderReport(year, found.cls.system==='secondary' ? '1' : null);
-  go('student-result');
+  alert.textContent='ส่วนตรวจสอบผลการเรียนสำหรับนักเรียนกำลังพัฒนา จะเปิดให้บริการเร็ว ๆ นี้';
+  alert.classList.add('show');
 }
 function backFromReport(){ go(REPORT_BACK); }
 
@@ -659,7 +655,7 @@ function renderSecReport(stu, cls, year, term, head) {
       +'<td class="num">'+fmt(subs[i].credit,1)+'</td><td class="num">'+tt+'</td>'
       +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tt),1)+'</span></td></tr>';
   }
-  var t=stu.terms[term]||{read:'-',char:'-',comp:'-'};
+  var t=(stu.terms&&stu.terms[term])||{read:'-',char:'-',comp:'-'};
   var html=head+'<div class="paper-inner">'
     +'<div class="stu-meta">'
     +'<div><span>ชื่อ - สกุล:</span> <b>'+stu.name+'</b></div>'
@@ -682,9 +678,9 @@ function renderSecReport(stu, cls, year, term, head) {
 }
 
 function renderPriReport(stu, cls, year, head) {
-  var subs=SUBJECTS.primary, rows="";
+  var subs=SUBJECTS.primary, yy=stu.y||{}, rows="";
   for (var i=0;i<subs.length;i++){
-    var sc=stu.y[subs[i].code];
+    var sc=(yy[subs[i].code]!=null)?yy[subs[i].code]:0;
     rows+='<tr><td>'+subs[i].code+'</td><td>'+subs[i].name+'</td>'
       +'<td class="num">'+sc+'</td>'
       +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(sc),1)+'</span></td></tr>';
@@ -703,9 +699,9 @@ function renderPriReport(stu, cls, year, head) {
     +'<div class="sum-box"><div class="k">จำนวนรายวิชา</div><div class="v">'+subs.length+'</div></div>'
     +'<div class="sum-box"><div class="k">ปีการศึกษา</div><div class="v" style="font-size:20px">'+year+'</div></div></div>'
     +'<div class="assess-grid">'
-    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+stu.read+'</b></div>'
-    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+stu.char+'</b></div>'
-    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+stu.comp+'</b></div>'
+    +'<div class="row"><span>การอ่าน คิดวิเคราะห์ และเขียน</span><b class="pass">'+(stu.read||'-')+'</b></div>'
+    +'<div class="row"><span>คุณลักษณะอันพึงประสงค์</span><b class="pass">'+(stu.char||'-')+'</b></div>'
+    +'<div class="row"><span>สมรรถนะสำคัญของผู้เรียน</span><b class="pass">'+(stu.comp||'-')+'</b></div>'
     +'<div class="row"><span>ผลการตัดสิน</span><b class="pass">ผ่านเกณฑ์การประเมิน</b></div></div></div>';
   document.getElementById('report-paper').innerHTML=html;
 }
@@ -719,7 +715,7 @@ function adminLogin() {
   var alert=document.getElementById('adm-alert');
   if (!window.fbSignIn){ alert.textContent='ระบบกำลังโหลด กรุณารอสักครู่แล้วลองใหม่'; alert.classList.add('show'); return; }
   window.fbSignIn(email, pass).then(function(){
-    alert.classList.remove('show'); initAdmin(); go('admin');
+    alert.classList.remove('show'); initAdmin(); if(window.fbReloadStudents) window.fbReloadStudents(); go('admin');
   }).catch(function(err){
     alert.textContent='อีเมลหรือรหัสผ่านไม่ถูกต้อง'; alert.classList.add('show');
   });
@@ -766,10 +762,6 @@ function renderDashboard() {
   document.getElementById('st-years').textContent=YEARS.length;
   document.getElementById('st-subjects').textContent=SUBJECTS.secondary.length+SUBJECTS.primary.length;
 
-  if (!hasData()){
-    document.getElementById('dash-classes').innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i><p>ยังไม่มีข้อมูลในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
-    return;
-  }
   var rows="";
   for (var k=0;k<CLASSES.length;k++){
     var c=CLASSES[k];
@@ -828,6 +820,64 @@ function reloadClasses() {
   window.fbLoadClasses().then(function(arr){ CLASSES=arr; initAdmin(); });
 }
 
+/* ---- จัดการนักเรียน (เขียนลง Firestore) ---- */
+function openStudentModal(mode, id) {
+  var alert=document.getElementById('student-modal-alert'); alert.classList.remove('show');
+  document.getElementById('stf-class').innerHTML=classOptions(document.getElementById('stu-class').value);
+  if (mode==='edit') {
+    var s=null;
+    for (var i=0;i<STUDENTS_DATA.length;i++) if (STUDENTS_DATA[i].id===id) s=STUDENTS_DATA[i];
+    if (!s) return;
+    document.getElementById('student-modal-title').textContent='แก้ไขนักเรียน';
+    document.getElementById('stf-class').value=s.classId;
+    document.getElementById('stf-no').value=s.no;
+    document.getElementById('stf-name').value=s.name;
+    document.getElementById('stf-sid').value=s.sid;
+    document.getElementById('stf-cid').value=s.cid;
+    document.getElementById('stf-dob').value=s.dob;
+    document.getElementById('stf-save-btn').setAttribute('data-edit', id);
+  } else {
+    document.getElementById('student-modal-title').textContent='เพิ่มนักเรียน';
+    document.getElementById('stf-no').value='';
+    document.getElementById('stf-name').value='';
+    document.getElementById('stf-sid').value='';
+    document.getElementById('stf-cid').value='';
+    document.getElementById('stf-dob').value='';
+    document.getElementById('stf-save-btn').removeAttribute('data-edit');
+  }
+  document.getElementById('student-modal').classList.add('open');
+}
+function closeStudentModal() { document.getElementById('student-modal').classList.remove('open'); }
+function saveStudent() {
+  var data={
+    classId: document.getElementById('stf-class').value,
+    no: parseInt(document.getElementById('stf-no').value, 10) || 0,
+    name: document.getElementById('stf-name').value.trim(),
+    sid: document.getElementById('stf-sid').value.trim(),
+    cid: document.getElementById('stf-cid').value.trim(),
+    dob: document.getElementById('stf-dob').value,
+    year: CURRENT_YEAR
+  };
+  var alert=document.getElementById('student-modal-alert');
+  if (!data.name || !data.sid || !data.cid || !data.dob) { alert.textContent='กรุณากรอกข้อมูลให้ครบทุกช่อง'; alert.classList.add('show'); return; }
+  if (data.cid.length !== 13) { alert.textContent='เลขบัตรประชาชนต้องมี 13 หลัก'; alert.classList.add('show'); return; }
+  if (!window.fbAddStudent) { alert.textContent='ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'; alert.classList.add('show'); return; }
+  var btn=document.getElementById('stf-save-btn'); btn.disabled=true;
+  var editId=btn.getAttribute('data-edit');
+  var op = editId ? window.fbUpdateStudent(editId, data) : window.fbAddStudent(data);
+  op.then(function(){ btn.disabled=false; closeStudentModal(); reloadStudents(); })
+    .catch(function(e){ btn.disabled=false; alert.textContent='บันทึกไม่สำเร็จ: '+e.message; alert.classList.add('show'); });
+}
+function deleteStudent(id) {
+  if (!confirm('ต้องการลบนักเรียนคนนี้ใช่หรือไม่?')) return;
+  if (!window.fbDeleteStudent) return;
+  window.fbDeleteStudent(id).then(function(){ reloadStudents(); });
+}
+function reloadStudents() {
+  if (!window.fbLoadStudents) return;
+  window.fbLoadStudents().then(function(arr){ STUDENTS_DATA=arr; renderDashboard(); renderStudents(); renderPp5(); renderPp6(); });
+}
+
 function renderStudents() {
   var cid=document.getElementById('stu-class').value;
   var c=classById(cid);
@@ -844,10 +894,11 @@ function renderStudents() {
     var avg=(c.system==='secondary')?secGPAX(st):priGPA(st);
     rows+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td><td>'+st.sid+'</td>'
       +'<td class="num"><span class="pill pill-grade">'+fmt(avg,2)+'</span></td>'
-      +'<td><button class="btn btn-ghost" style="padding:6px 12px;font-size:13px"><i class="ti ti-edit"></i> แก้ไข</button></td></tr>';
+      +'<td class="num"><button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="openStudentModal(\'edit\',\''+st.id+'\')"><i class="ti ti-edit"></i></button> '
+      +'<button class="btn btn-ghost" style="padding:6px 10px;font-size:13px" onclick="deleteStudent(\''+st.id+'\')"><i class="ti ti-trash"></i></button></td></tr>';
   }
   document.getElementById('student-table').innerHTML=
-    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>เลขประจำตัว</th><th class="num">'+avgHead+'</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>เลขประจำตัว</th><th class="num">'+avgHead+'</th><th class="num">จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 function onPp5ClassChange() {
@@ -867,9 +918,9 @@ function renderPp5() {
   for (var i=0;i<subs.length;i++) if (subs[i].code===code) sub=subs[i];
   var list=rosterOf(cid);
 
-  if (!hasData() || !list.length){
+  if (!list.length){
     document.getElementById('pp5-title').textContent='คะแนน';
-    document.getElementById('pp5-table').innerHTML='<div class="empty"><i class="ti ti-clipboard-off"></i><p>ยังไม่มีข้อมูลในปีการศึกษา '+CURRENT_YEAR+'</p></div>';
+    document.getElementById('pp5-table').innerHTML='<div class="empty"><i class="ti ti-clipboard-off"></i><p>ยังไม่มีนักเรียนในห้องนี้ (ปีการศึกษา '+CURRENT_YEAR+')</p></div>';
     return;
   }
 
@@ -879,7 +930,7 @@ function renderPp5() {
     document.getElementById('pp5-scale').textContent='เก็บ 60 + กลางภาค 20 + ปลายภาค 20';
     var r1="";
     for (var j=0;j<list.length;j++){
-      var st=list[j]; var a=(st.terms[term]&&st.terms[term].s[code])?st.terms[term].s[code]:[0,0,0];
+      var st=list[j]; var a=(st.terms&&st.terms[term]&&st.terms[term].s&&st.terms[term].s[code])?st.terms[term].s[code]:[0,0,0];
       var tot=a[0]+a[1]+a[2];
       r1+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
         +'<td class="num"><input class="score" value="'+a[0]+'" /></td>'
@@ -895,7 +946,7 @@ function renderPp5() {
     document.getElementById('pp5-scale').textContent='คะแนนรวมทั้งปี เต็ม 100';
     var r2="";
     for (var k=0;k<list.length;k++){
-      var s2=list[k]; var sc=(s2.y[code]!=null)?s2.y[code]:0;
+      var s2=list[k]; var sc=(s2.y&&s2.y[code]!=null)?s2.y[code]:0;
       r2+='<tr><td class="num">'+s2.no+'</td><td>'+s2.name+'</td>'
         +'<td class="num"><input class="score" value="'+sc+'" /></td>'
         +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(sc),1)+'</span></td></tr>';
@@ -986,7 +1037,7 @@ document.addEventListener('click', function(e){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCEJNg2j3L3M58W_IKS20WmlpxqBGZAqT8",
@@ -1021,6 +1072,26 @@ document.addEventListener('click', function(e){
   window.fbLoadClasses = loadClasses;
   window.fbAddClass = function(id, data){ return setDoc(doc(db, "Classes", id), data); };
   window.fbDeleteClass = function(id){ return deleteDoc(doc(db, "Classes", id)); };
+
+  /* นักเรียน (collection: students) */
+  async function loadStudents(){
+    const snap = await getDocs(collection(db, "students"));
+    const arr = [];
+    snap.forEach(function(d){ const v = d.data(); v.id = d.id; arr.push(v); });
+    return arr;
+  }
+  window.fbLoadStudents = loadStudents;
+  window.fbAddStudent = function(data){ return addDoc(collection(db, "students"), data); };
+  window.fbUpdateStudent = function(id, data){ return updateDoc(doc(db, "students", id), data); };
+  window.fbDeleteStudent = function(id){ return deleteDoc(doc(db, "students", id)); };
+
+  /* โหลดนักเรียนหลังครูล็อกอิน (students ถูกปิดด้วย Rules จึงโหลดได้เฉพาะตอนล็อกอินแล้ว) */
+  window.fbReloadStudents = function(){
+    loadStudents().then(function(arr){
+      console.log("โหลดนักเรียนจาก Firestore:", arr.length, "คน");
+      if (window.onStudentsLoaded) window.onStudentsLoaded(arr);
+    }).catch(function(e){ console.warn("โหลดนักเรียนไม่สำเร็จ:", e); });
+  };
 </script>
 </body>
 </html>
