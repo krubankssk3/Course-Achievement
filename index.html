@@ -529,12 +529,34 @@ var SUBJECTS = {
 /* นักเรียนทั้งหมด โหลดจาก Firestore — แต่ละคน: {id,name,sid,no,cid,dob,classId,year}
    (คะแนนจะแยกไปเก็บใน records ในเฟสถัดไป จึงยังไม่มี terms/y ตอนนี้) */
 var STUDENTS_DATA = [];
-window.onStudentsLoaded = function(arr) {
-  STUDENTS_DATA = arr || [];
-  if (document.getElementById('view-admin').classList.contains('active')) {
-    renderDashboard(); renderStudents(); renderPp5(); renderPp6();
+/* ประกอบคะแนนจาก records กลับเข้าตัวนักเรียน เพื่อให้ฟังก์ชันคำนวณเดิมใช้งานได้ */
+function applyRecords(records) {
+  for (var i=0;i<STUDENTS_DATA.length;i++){ STUDENTS_DATA[i].terms=null; STUDENTS_DATA[i].y=null; }
+  for (var r=0;r<records.length;r++){
+    var rec=records[r], sc=rec.scores||{};
+    for (var sid in sc){
+      if(!sc.hasOwnProperty(sid)) continue;
+      var stu=null;
+      for (var k=0;k<STUDENTS_DATA.length;k++) if(STUDENTS_DATA[k].id===sid){ stu=STUDENTS_DATA[k]; break; }
+      if(!stu) continue;
+      if (rec.term==='year'){ stu.y=stu.y||{}; stu.y[rec.subjectCode]=sc[sid]; }
+      else { stu.terms=stu.terms||{}; stu.terms[rec.term]=stu.terms[rec.term]||{s:{}}; stu.terms[rec.term].s[rec.subjectCode]=sc[sid]; }
+    }
   }
-};
+}
+/* โหลดนักเรียน + คะแนนของปีปัจจุบัน แล้ว render ใหม่ทั้งหมด */
+function loadAllData() {
+  if (!window.fbLoadStudents) return;
+  window.fbLoadStudents().then(function(students){
+    STUDENTS_DATA = students || [];
+    return window.fbLoadRecords(CURRENT_YEAR);
+  }).then(function(records){
+    applyRecords(records || []);
+    if (document.getElementById('view-admin').classList.contains('active')) {
+      renderDashboard(); renderStudents(); renderPp5(); renderPp6();
+    }
+  }).catch(function(e){ console.warn("โหลดข้อมูลไม่สำเร็จ:", e); });
+}
 
 /* ============================================================
    ฟังก์ชันคำนวณ (เกณฑ์ 8 ระดับ ตามหลักสูตรแกนกลาง 2551)
@@ -715,7 +737,7 @@ function adminLogin() {
   var alert=document.getElementById('adm-alert');
   if (!window.fbSignIn){ alert.textContent='ระบบกำลังโหลด กรุณารอสักครู่แล้วลองใหม่'; alert.classList.add('show'); return; }
   window.fbSignIn(email, pass).then(function(){
-    alert.classList.remove('show'); initAdmin(); if(window.fbReloadStudents) window.fbReloadStudents(); go('admin');
+    alert.classList.remove('show'); initAdmin(); loadAllData(); go('admin');
   }).catch(function(err){
     alert.textContent='อีเมลหรือรหัสผ่านไม่ถูกต้อง'; alert.classList.add('show');
   });
@@ -740,7 +762,7 @@ function classOptions(sel) {
 function onYearChange() {
   CURRENT_YEAR=document.getElementById('year-select').value;
   document.getElementById('dash-sub').textContent='ปีการศึกษา '+CURRENT_YEAR;
-  refreshAdmin();
+  loadAllData();
 }
 function refreshAdmin() {
   renderDashboard(); renderStudents(); onPp5ClassChange(); renderPp6();
@@ -817,7 +839,7 @@ function deleteClass(id) {
 }
 function reloadClasses() {
   if (!window.fbLoadClasses) return;
-  window.fbLoadClasses().then(function(arr){ CLASSES=arr; initAdmin(); });
+  window.fbLoadClasses().then(function(arr){ CLASSES=arr; initAdmin(); loadAllData(); });
 }
 
 /* ---- จัดการนักเรียน (เขียนลง Firestore) ---- */
@@ -874,8 +896,7 @@ function deleteStudent(id) {
   window.fbDeleteStudent(id).then(function(){ reloadStudents(); });
 }
 function reloadStudents() {
-  if (!window.fbLoadStudents) return;
-  window.fbLoadStudents().then(function(arr){ STUDENTS_DATA=arr; renderDashboard(); renderStudents(); renderPp5(); renderPp6(); });
+  loadAllData();
 }
 
 function renderStudents() {
@@ -933,9 +954,9 @@ function renderPp5() {
       var st=list[j]; var a=(st.terms&&st.terms[term]&&st.terms[term].s&&st.terms[term].s[code])?st.terms[term].s[code]:[0,0,0];
       var tot=a[0]+a[1]+a[2];
       r1+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
-        +'<td class="num"><input class="score" value="'+a[0]+'" /></td>'
-        +'<td class="num"><input class="score" value="'+a[1]+'" /></td>'
-        +'<td class="num"><input class="score" value="'+a[2]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="0" value="'+a[0]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="1" value="'+a[1]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="2" value="'+a[2]+'" /></td>'
         +'<td class="num"><b>'+tot+'</b></td>'
         +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tot),1)+'</span></td></tr>';
     }
@@ -948,14 +969,37 @@ function renderPp5() {
     for (var k=0;k<list.length;k++){
       var s2=list[k]; var sc=(s2.y&&s2.y[code]!=null)?s2.y[code]:0;
       r2+='<tr><td class="num">'+s2.no+'</td><td>'+s2.name+'</td>'
-        +'<td class="num"><input class="score" value="'+sc+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+s2.id+'" value="'+sc+'" /></td>'
         +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(sc),1)+'</span></td></tr>';
     }
     document.getElementById('pp5-table').innerHTML=
       '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">คะแนนรวมทั้งปี (100)</th><th class="num">เกรด</th></tr></thead><tbody>'+r2+'</tbody></table>';
   }
 }
-function savePp5() { alert('ตัวอย่าง prototype: ในระบบจริง จุดนี้จะบันทึกคะแนนลง Firestore แล้วอัปเดต ปพ.6 อัตโนมัติ'); }
+function savePp5() {
+  var cid=document.getElementById('pp5-class').value;
+  var c=classById(cid);
+  var code=document.getElementById('pp5-subject').value;
+  if (!c || !code) return;
+  var term = (c.system==='secondary') ? document.getElementById('pp5-term').value : 'year';
+  if (!window.fbSaveRecord) { alert('ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'); return; }
+
+  var scores={};
+  var inputs=document.querySelectorAll('#pp5-table input.score');
+  for (var i=0;i<inputs.length;i++){
+    var sid=inputs[i].getAttribute('data-sid');
+    var val=parseInt(inputs[i].value,10); if (isNaN(val)) val=0;
+    if (c.system==='secondary'){
+      var idx=parseInt(inputs[i].getAttribute('data-idx'),10);
+      if(!scores[sid]) scores[sid]=[0,0,0];
+      scores[sid][idx]=val;
+    } else { scores[sid]=val; }
+  }
+  var recordId=CURRENT_YEAR+'_'+cid+'_'+code+'_'+term;
+  window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:code, term:term, scores:scores })
+    .then(function(){ alert('บันทึกคะแนนเรียบร้อยแล้ว'); loadAllData(); })
+    .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
 
 function renderPp6() {
   var cid=document.getElementById('pp6-class').value;
@@ -1037,7 +1081,7 @@ document.addEventListener('click', function(e){
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCEJNg2j3L3M58W_IKS20WmlpxqBGZAqT8",
@@ -1085,13 +1129,16 @@ document.addEventListener('click', function(e){
   window.fbUpdateStudent = function(id, data){ return updateDoc(doc(db, "students", id), data); };
   window.fbDeleteStudent = function(id){ return deleteDoc(doc(db, "students", id)); };
 
-  /* โหลดนักเรียนหลังครูล็อกอิน (students ถูกปิดด้วย Rules จึงโหลดได้เฉพาะตอนล็อกอินแล้ว) */
-  window.fbReloadStudents = function(){
-    loadStudents().then(function(arr){
-      console.log("โหลดนักเรียนจาก Firestore:", arr.length, "คน");
-      if (window.onStudentsLoaded) window.onStudentsLoaded(arr);
-    }).catch(function(e){ console.warn("โหลดนักเรียนไม่สำเร็จ:", e); });
-  };
+  /* ผลการเรียน (collection: records) — 1 document = วิชา × ห้อง × ภาคเรียน × ปี */
+  async function loadRecords(year){
+    const q = query(collection(db, "records"), where("year", "==", year));
+    const snap = await getDocs(q);
+    const arr = [];
+    snap.forEach(function(d){ arr.push(d.data()); });
+    return arr;
+  }
+  window.fbLoadRecords = loadRecords;
+  window.fbSaveRecord = function(id, data){ return setDoc(doc(db, "records", id), data); };
 </script>
 </body>
 </html>
