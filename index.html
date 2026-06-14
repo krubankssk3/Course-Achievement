@@ -234,6 +234,12 @@
   .msg-actions textarea { width:100%; resize:vertical; }
   .msg-btns { display:flex; gap:8px; }
   .pill-new { background:#FDECEC; color:#C0392B; }
+  .track-msg { margin-top:12px; font-size:14px; color:var(--muted); }
+  .track-err { color:#C0392B; }
+  .track-card { margin-top:14px; }
+  .track-q { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px 16px; line-height:1.6; }
+  .track-a { background:var(--primary-soft); color:var(--primary-dark); border-radius:10px; padding:12px 16px; margin-top:10px; line-height:1.6; }
+  .track-pending { background:#FFF8E6; color:#7a5d12; border-radius:10px; padding:12px 16px; margin-top:10px; display:flex; align-items:center; gap:8px; }
 
   .modal-overlay { position:fixed; inset:0; background:rgba(22,49,78,.5); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
   .modal-overlay.open { display:flex; }
@@ -966,18 +972,20 @@ var DEVELOPER={
 window.onDeveloperLoaded=function(d){ if(d){ for(var k in d){ if(d.hasOwnProperty(k)) DEVELOPER[k]=d[k]; } } renderDeveloperPublic(); };
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function goDeveloper(toContact){
-  renderDeveloperPublic();
+  renderDeveloperPublic(toContact);
   go('developer');
-  if (toContact){ setTimeout(function(){ var el=document.getElementById('dev-contact-card'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 120); }
+  window.scrollTo(0,0);
 }
-function renderDeveloperPublic(){
-  var d=DEVELOPER;
+function devInfoHtml(d){
   var photo = d.photo ? '<img class="photo" src="'+d.photo+'" alt="ผู้พัฒนา" />' : '<div class="avatar"><i class="ti ti-user"></i></div>';
   var meta='<div class="dev-meta">'
     +'<div class="item"><i class="ti ti-brand-github"></i><div class="k">GitHub</div><div class="v">'+esc(d.github)+'</div></div>'
     +'<div class="item"><i class="ti ti-stack-2"></i><div class="k">สถาปัตยกรรม</div><div class="v">'+esc(d.arch)+'</div></div>'
     +'<div class="item"><i class="ti ti-versions"></i><div class="k">เวอร์ชันระบบ</div><div class="v">'+esc(d.version)+'</div></div>'
     +'<div class="item"><i class="ti ti-file-text"></i><div class="k">มาตรฐานเอกสาร</div><div class="v">'+esc(d.standard)+'</div></div></div>';
+  return '<div class="dev-card">'+photo+'<div><h3>'+esc(d.name)+'</h3><div class="role">'+esc(d.position)+'</div></div></div>'+meta;
+}
+function devContactHtml(d){
   var ch='';
   if (d.email) ch+='<div class="ch"><i class="ti ti-mail"></i>'+esc(d.email)+'</div>';
   if (d.phone) ch+='<div class="ch"><i class="ti ti-phone"></i>'+esc(d.phone)+'</div>';
@@ -989,8 +997,23 @@ function renderDeveloperPublic(){
     +'<button class="btn btn-primary" onclick="sendDevMessage()"><i class="ti ti-send"></i> ส่งข้อความ</button></div>';
   var contact='<div class="dev-contact" id="dev-contact-card"><h3><i class="ti ti-mail"></i> ติดต่อผู้พัฒนา</h3>'
     +'<p>'+esc(d.contactText)+'</p>'+(ch?'<div class="channels">'+ch+'</div>':'')+form+'</div>';
-  var html='<div class="dev-card">'+photo+'<div><h3>'+esc(d.name)+'</h3><div class="role">'+esc(d.position)+'</div></div></div>'+meta+contact;
-  var box=document.getElementById('dev-public'); if(box) box.innerHTML=html;
+  var check='<div class="dev-contact" style="margin-top:16px"><h3><i class="ti ti-message-search"></i> ตรวจสอบคำตอบจากผู้พัฒนา</h3>'
+    +'<p>กรอกรหัสติดตามที่ได้รับตอนส่งข้อความ เพื่อดูคำตอบจากผู้พัฒนา</p>'
+    +'<div class="dev-msg-form"><div class="field"><label>รหัสติดตาม</label><input id="track-code" type="text" placeholder="เช่น A3KP9Q" style="text-transform:uppercase" /></div>'
+    +'<button class="btn btn-ghost" onclick="checkReply()"><i class="ti ti-search"></i> ตรวจสอบ</button></div>'
+    +'<div id="track-result"></div></div>';
+  return contact+check;
+}
+function renderDeveloperPublic(toContact){
+  var d=DEVELOPER;
+  var box=document.getElementById('dev-public');
+  if(!box) return;
+  box.innerHTML = toContact ? devContactHtml(d) : devInfoHtml(d);
+}
+function genTrackCode(){
+  var s='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', c='';
+  for(var i=0;i<6;i++) c+=s.charAt(Math.floor(Math.random()*s.length));
+  return c;
 }
 function sendDevMessage(){
   var name=document.getElementById('msg-name').value.trim();
@@ -998,12 +1021,28 @@ function sendDevMessage(){
   var text=document.getElementById('msg-text').value.trim();
   if(!text){ alert('กรุณากรอกข้อความ/คำถาม'); return; }
   if(!window.fbSendMessage){ alert('ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'); return; }
-  window.fbSendMessage({ name:name, contact:contact, text:text, createdAt:Date.now(), status:'new', reply:'' })
+  var code=genTrackCode();
+  window.fbSendMessage(code, { name:name, contact:contact, text:text, createdAt:Date.now(), status:'new', reply:'' })
     .then(function(){
       var f=document.getElementById('dev-msg-form');
-      if(f) f.innerHTML='<div class="dev-sent"><i class="ti ti-circle-check"></i> ส่งข้อความเรียบร้อยแล้ว ผู้พัฒนาจะติดต่อกลับผ่านช่องทางที่คุณให้ไว้</div>';
+      if(f) f.innerHTML='<div class="dev-sent"><i class="ti ti-circle-check"></i> ส่งข้อความเรียบร้อยแล้ว<br>รหัสติดตามของคุณคือ <b style="font-size:20px;letter-spacing:2px">'+code+'</b><br>เก็บรหัสนี้ไว้เพื่อตรวจสอบคำตอบจากผู้พัฒนา</div>';
     })
     .catch(function(e){ alert('ส่งไม่สำเร็จ: '+e.message); });
+}
+function checkReply(){
+  var code=(document.getElementById('track-code').value||'').trim().toUpperCase();
+  var box=document.getElementById('track-result');
+  if(!code){ box.innerHTML='<div class="track-msg track-err">กรุณากรอกรหัสติดตาม</div>'; return; }
+  if(!window.fbGetMessage){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  box.innerHTML='<div class="track-msg">กำลังตรวจสอบ...</div>';
+  window.fbGetMessage(code).then(function(m){
+    if(!m){ box.innerHTML='<div class="track-msg track-err">ไม่พบรหัสนี้ กรุณาตรวจสอบอีกครั้ง</div>'; return; }
+    var h='<div class="track-card"><div class="track-q"><b>ข้อความของคุณ:</b><br>'+esc(m.text)+'</div>';
+    if(m.status==='replied' && m.reply){ h+='<div class="track-a"><i class="ti ti-corner-down-right"></i> <b>คำตอบจากผู้พัฒนา:</b><br>'+esc(m.reply)+'</div>'; }
+    else { h+='<div class="track-pending"><i class="ti ti-clock"></i> ผู้พัฒนายังไม่ได้ตอบกลับ กรุณาตรวจสอบอีกครั้งภายหลัง</div>'; }
+    h+='</div>';
+    box.innerHTML=h;
+  }).catch(function(e){ box.innerHTML='<div class="track-msg track-err">ตรวจสอบไม่สำเร็จ: '+esc(e.message)+'</div>'; });
 }
 /* ฟอร์มแก้ไขผู้พัฒนา (ฝั่งครู) */
 function fillDeveloperForm(){
@@ -1068,6 +1107,7 @@ function renderMessages(){
     var badge = m.status==='replied' ? '<span class="pill pill-ok">ตอบแล้ว</span>' : '<span class="pill pill-new">ใหม่</span>';
     html+='<div class="msg-item">'
       +'<div class="msg-top"><div class="msg-who"><strong>'+esc(m.name||'ไม่ระบุชื่อ')+'</strong>'
+      +'<span class="msg-contact"><i class="ti ti-hash"></i> '+esc(m.id)+'</span>'
       +(m.contact?'<span class="msg-contact"><i class="ti ti-address-book"></i> '+esc(m.contact)+'</span>':'')+'</div>'
       +'<div class="msg-meta">'+badge+'<span class="msg-time">'+fmtTime(m.createdAt)+'</span></div></div>'
       +'<div class="msg-text">'+esc(m.text)+'</div>'
@@ -2376,7 +2416,11 @@ document.addEventListener('click', function(e){
   window.fbSaveSettings = function(id, data){ return setDoc(doc(db, "settings", id), data); };
 
   /* กล่องข้อความติดต่อผู้พัฒนา */
-  window.fbSendMessage = function(data){ return addDoc(collection(db, "messages"), data); };
+  window.fbSendMessage = function(code, data){ return setDoc(doc(db, "messages", code), data); };
+  window.fbGetMessage = async function(code){
+    const snap = await getDoc(doc(db, "messages", code));
+    return snap.exists() ? snap.data() : null;
+  };
   window.fbLoadMessages = function(){
     return getDocs(collection(db, "messages")).then(function(snap){
       var arr=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; arr.push(o); }); return arr;
