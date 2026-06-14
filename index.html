@@ -1468,8 +1468,10 @@ function onSigUpload(key, input) {
 }
 function resizeImage(file, maxW, cb) {
   var reader=new FileReader();
+  reader.onerror=function(){ alert('อ่านไฟล์รูปไม่สำเร็จ ลองใหม่อีกครั้ง'); };
   reader.onload=function(e){
     var img=new Image();
+    img.onerror=function(){ alert('ไม่สามารถแสดงไฟล์รูปนี้ได้ กรุณาใช้ไฟล์ .png หรือ .jpg\n(ไฟล์ .heic จาก iPhone มักใช้ไม่ได้ ให้แปลงเป็น JPG ก่อน)'); };
     img.onload=function(){
       var scale=Math.min(1, maxW/img.width);
       var w=Math.round(img.width*scale), h=Math.round(img.height*scale);
