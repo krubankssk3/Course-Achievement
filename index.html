@@ -217,6 +217,23 @@
   .dev-contact .channels { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; }
   .dev-contact .ch { display:flex; align-items:center; gap:8px; background:var(--primary-soft); color:var(--primary-dark); padding:10px 16px; border-radius:10px; font-size:15px; }
   .dev-contact .ch i { font-size:18px; }
+  .dev-msg-form { margin-top:18px; display:flex; flex-direction:column; gap:12px; max-width:560px; }
+  .dev-msg-form textarea, .dev-msg-form input { width:100%; resize:vertical; }
+  .dev-msg-form .btn { align-self:flex-start; }
+  .dev-sent { background:var(--primary-soft); color:var(--primary-dark); border-radius:10px; padding:14px 18px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  .dev-sent i { font-size:20px; }
+  .msg-item { border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:12px; background:var(--surface); }
+  .msg-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .msg-who { font-size:15px; }
+  .msg-contact { display:inline-flex; align-items:center; gap:4px; color:var(--muted); font-size:13px; margin-left:10px; }
+  .msg-meta { display:flex; align-items:center; gap:10px; }
+  .msg-time { color:var(--muted); font-size:12.5px; }
+  .msg-text { margin:10px 0; color:var(--ink); line-height:1.6; white-space:pre-wrap; }
+  .msg-reply { background:var(--primary-soft); color:var(--primary-dark); border-radius:8px; padding:8px 12px; font-size:14px; margin-bottom:10px; }
+  .msg-actions { display:flex; flex-direction:column; gap:8px; }
+  .msg-actions textarea { width:100%; resize:vertical; }
+  .msg-btns { display:flex; gap:8px; }
+  .pill-new { background:#FDECEC; color:#C0392B; }
 
   .modal-overlay { position:fixed; inset:0; background:rgba(22,49,78,.5); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
   .modal-overlay.open { display:flex; }
@@ -640,6 +657,10 @@
               </div>
             </div>
           </div>
+          <div class="panel">
+            <div class="panel-head"><h3>กล่องข้อความจากผู้ใช้</h3><button class="btn btn-ghost" style="padding:8px 14px;font-size:14px" onclick="loadMessages()"><i class="ti ti-refresh"></i> รีเฟรช</button></div>
+            <div class="panel-body"><div id="msg-list"><div class="empty"><i class="ti ti-inbox"></i><p>ยังไม่ได้โหลดข้อความ</p></div></div></div>
+          </div>
         </section>
 
       </main>
@@ -961,10 +982,28 @@ function renderDeveloperPublic(){
   if (d.email) ch+='<div class="ch"><i class="ti ti-mail"></i>'+esc(d.email)+'</div>';
   if (d.phone) ch+='<div class="ch"><i class="ti ti-phone"></i>'+esc(d.phone)+'</div>';
   if (d.line) ch+='<div class="ch"><i class="ti ti-brand-line"></i>'+esc(d.line)+'</div>';
+  var form='<div class="dev-msg-form" id="dev-msg-form">'
+    +'<div class="field"><label>ชื่อของคุณ</label><input id="msg-name" type="text" placeholder="เช่น ผู้ปกครอง / คุณครู / นักเรียน" /></div>'
+    +'<div class="field"><label>ช่องทางติดต่อกลับ (อีเมล / เบอร์โทร / Line)</label><input id="msg-contact" type="text" placeholder="เพื่อให้ผู้พัฒนาตอบกลับคุณได้" /></div>'
+    +'<div class="field"><label>ข้อความ / คำถาม</label><textarea id="msg-text" rows="4" placeholder="พิมพ์คำถามหรือสิ่งที่ต้องการแจ้ง"></textarea></div>'
+    +'<button class="btn btn-primary" onclick="sendDevMessage()"><i class="ti ti-send"></i> ส่งข้อความ</button></div>';
   var contact='<div class="dev-contact" id="dev-contact-card"><h3><i class="ti ti-mail"></i> ติดต่อผู้พัฒนา</h3>'
-    +'<p>'+esc(d.contactText)+'</p>'+(ch?'<div class="channels">'+ch+'</div>':'')+'</div>';
+    +'<p>'+esc(d.contactText)+'</p>'+(ch?'<div class="channels">'+ch+'</div>':'')+form+'</div>';
   var html='<div class="dev-card">'+photo+'<div><h3>'+esc(d.name)+'</h3><div class="role">'+esc(d.position)+'</div></div></div>'+meta+contact;
   var box=document.getElementById('dev-public'); if(box) box.innerHTML=html;
+}
+function sendDevMessage(){
+  var name=document.getElementById('msg-name').value.trim();
+  var contact=document.getElementById('msg-contact').value.trim();
+  var text=document.getElementById('msg-text').value.trim();
+  if(!text){ alert('กรุณากรอกข้อความ/คำถาม'); return; }
+  if(!window.fbSendMessage){ alert('ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'); return; }
+  window.fbSendMessage({ name:name, contact:contact, text:text, createdAt:Date.now(), status:'new', reply:'' })
+    .then(function(){
+      var f=document.getElementById('dev-msg-form');
+      if(f) f.innerHTML='<div class="dev-sent"><i class="ti ti-circle-check"></i> ส่งข้อความเรียบร้อยแล้ว ผู้พัฒนาจะติดต่อกลับผ่านช่องทางที่คุณให้ไว้</div>';
+    })
+    .catch(function(e){ alert('ส่งไม่สำเร็จ: '+e.message); });
 }
 /* ฟอร์มแก้ไขผู้พัฒนา (ฝั่งครู) */
 function fillDeveloperForm(){
@@ -1004,6 +1043,52 @@ function saveDeveloper(){
   window.fbSaveSettings('developer', DEVELOPER).then(function(){
     alert('บันทึกข้อมูลผู้พัฒนาเรียบร้อยแล้ว'); renderDeveloperPublic();
   }).catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
+/* กล่องข้อความฝั่งครู */
+var MESSAGES=[];
+function fmtTime(ms){
+  if(!ms) return '';
+  var d=new Date(ms);
+  function p(n){ return (n<10?'0':'')+n; }
+  return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+(d.getFullYear()+543)+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function loadMessages(){
+  if(!window.fbLoadMessages){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  document.getElementById('msg-list').innerHTML='<div class="empty"><i class="ti ti-loader"></i><p>กำลังโหลด...</p></div>';
+  window.fbLoadMessages().then(function(arr){
+    MESSAGES=(arr||[]).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    renderMessages();
+  }).catch(function(e){ document.getElementById('msg-list').innerHTML='<div class="empty"><i class="ti ti-alert-triangle"></i><p>โหลดไม่สำเร็จ: '+esc(e.message)+'</p></div>'; });
+}
+function renderMessages(){
+  if(!MESSAGES.length){ document.getElementById('msg-list').innerHTML='<div class="empty"><i class="ti ti-inbox"></i><p>ยังไม่มีข้อความ</p></div>'; return; }
+  var html='';
+  for (var i=0;i<MESSAGES.length;i++){
+    var m=MESSAGES[i];
+    var badge = m.status==='replied' ? '<span class="pill pill-ok">ตอบแล้ว</span>' : '<span class="pill pill-new">ใหม่</span>';
+    html+='<div class="msg-item">'
+      +'<div class="msg-top"><div class="msg-who"><strong>'+esc(m.name||'ไม่ระบุชื่อ')+'</strong>'
+      +(m.contact?'<span class="msg-contact"><i class="ti ti-address-book"></i> '+esc(m.contact)+'</span>':'')+'</div>'
+      +'<div class="msg-meta">'+badge+'<span class="msg-time">'+fmtTime(m.createdAt)+'</span></div></div>'
+      +'<div class="msg-text">'+esc(m.text)+'</div>'
+      +(m.reply?'<div class="msg-reply"><i class="ti ti-corner-down-right"></i> ตอบกลับ: '+esc(m.reply)+'</div>':'')
+      +'<div class="msg-actions"><textarea id="reply-'+m.id+'" rows="2" placeholder="พิมพ์คำตอบ...">'+esc(m.reply||'')+'</textarea>'
+      +'<div class="msg-btns"><button class="btn btn-primary" style="padding:7px 13px;font-size:13px" onclick="replyMessage(\''+m.id+'\')"><i class="ti ti-send"></i> บันทึกคำตอบ</button>'
+      +'<button class="btn btn-ghost" style="padding:7px 11px;font-size:13px" onclick="deleteMessage(\''+m.id+'\')"><i class="ti ti-trash"></i></button></div></div>'
+      +'</div>';
+  }
+  document.getElementById('msg-list').innerHTML=html;
+}
+function replyMessage(id){
+  var t=document.getElementById('reply-'+id).value.trim();
+  if(!t){ alert('กรุณาพิมพ์คำตอบ'); return; }
+  if(!window.fbReplyMessage){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  window.fbReplyMessage(id, t).then(function(){ alert('บันทึกคำตอบเรียบร้อยแล้ว'); loadMessages(); })
+    .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
+function deleteMessage(id){
+  if(!confirm('ลบข้อความนี้?')) return;
+  window.fbDeleteMessage(id).then(function(){ loadMessages(); }).catch(function(e){ alert('ลบไม่สำเร็จ: '+e.message); });
 }
 
 /* ============================================================
@@ -1322,7 +1407,7 @@ function showPane(name, el) {
   var links=document.querySelectorAll('.side .nav-link');
   for (var j=0;j<links.length;j++) links[j].classList.remove('active');
   if (el) el.classList.add('active');
-  if (name==='developer') fillDeveloperForm();
+  if (name==='developer'){ fillDeveloperForm(); loadMessages(); }
 }
 function classOptions(sel) {
   var o="";
@@ -2289,6 +2374,16 @@ document.addEventListener('click', function(e){
     return snap.exists() ? snap.data() : null;
   };
   window.fbSaveSettings = function(id, data){ return setDoc(doc(db, "settings", id), data); };
+
+  /* กล่องข้อความติดต่อผู้พัฒนา */
+  window.fbSendMessage = function(data){ return addDoc(collection(db, "messages"), data); };
+  window.fbLoadMessages = function(){
+    return getDocs(collection(db, "messages")).then(function(snap){
+      var arr=[]; snap.forEach(function(d){ var o=d.data(); o.id=d.id; arr.push(o); }); return arr;
+    });
+  };
+  window.fbReplyMessage = function(id, reply){ return updateDoc(doc(db, "messages", id), { reply:reply, status:"replied", repliedAt:Date.now() }); };
+  window.fbDeleteMessage = function(id){ return deleteDoc(doc(db, "messages", id)); };
 
   /* โหลดลายเซ็นตอนเปิดเว็บ เพื่อให้แสดงบนเอกสารฝั่งนักเรียนได้ */
   window.fbLoadSettings('signatures').then(function(data){
