@@ -216,8 +216,8 @@
   .pp6-summary { flex:1.05; }
   .pp6-signs { flex:1; display:flex; flex-direction:column; gap:10px; padding-top:4px; }
   .pp6-sign { text-align:center; font-size:11.5px; line-height:1.5; }
-  .pp6-sign .line { min-height:34px; display:flex; align-items:flex-end; justify-content:center; overflow:visible; }
-  .pp6-sign .line img { display:block; }
+  .pp6-sign .line { height:38px; position:relative; }
+  .pp6-sign .line img { position:absolute; left:50%; bottom:0; }
   .pp6-sign .line img.sig-editing { cursor:move; outline:2px dashed var(--primary); outline-offset:2px; border-radius:4px; }
   .pp6-summary table { width:100%; border-collapse:collapse; }
   .pp6-summary th, .pp6-summary td { border:1px solid #888; padding:2.5px 6px; font-size:11px; }
@@ -229,8 +229,8 @@
   .sig-card h4 { font-family:'Kanit',sans-serif; margin:0 0 12px; color:var(--ink); font-size:15px; }
   .sig-card input[type=text] { width:100%; padding:9px 11px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-family:'Sarabun',sans-serif; font-size:14px; }
   .sig-card input[type=text]:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 3px var(--primary-soft); }
-  .sig-preview { min-height:90px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:#FAFBFC; overflow:hidden; }
-  .sig-preview img { display:block; }
+  .sig-preview { height:96px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:#FAFBFC; overflow:hidden; }
+  .sig-preview img { display:block; max-height:none; }
   .sig-preview span { color:var(--muted); font-size:13px; }
   .sig-card input[type=file] { width:100%; font-size:13px; }
   .sig-controls { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
@@ -1512,22 +1512,22 @@ var SIG_ROLES=[
 var SIGNATURES={};
 function sigImgStyle(s){
   s=s||{};
-  return 'width:'+(s.w||120)+'px; transform:translate('+(s.dx||0)+'px,'+(s.dy||0)+'px);';
+  return 'width:'+(s.w||120)+'px; transform:translateX(-50%) translate('+(s.dx||0)+'px,'+(s.dy||0)+'px);';
 }
+function sigPrevStyle(s){ s=s||{}; return 'width:'+(s.w||120)+'px;'; }
 function renderSignatures() {
   var html="";
   for (var i=0;i<SIG_ROLES.length;i++){
     var r=SIG_ROLES[i], s=SIGNATURES[r.key]||{};
-    var prev = s.img ? '<img id="sig-'+r.key+'-img" src="'+s.img+'" alt="ลายเซ็น" style="'+sigImgStyle(s)+'" />' : '<span>ยังไม่มีรูปลายเซ็น</span>';
+    var prev = s.img ? '<img id="sig-'+r.key+'-img" src="'+s.img+'" alt="ลายเซ็น" style="'+sigPrevStyle(s)+'" />' : '<span>ยังไม่มีรูปลายเซ็น</span>';
     html+='<div class="sig-card"><h4>'+r.label+'</h4>'
       +'<input type="text" id="sig-'+r.key+'-name" placeholder="ชื่อ-สกุล" value="'+(s.name||'')+'" />'
       +'<input type="text" id="sig-'+r.key+'-pos" placeholder="ตำแหน่ง" value="'+(s.position||r.defPos)+'" />'
       +'<div class="sig-preview" id="sig-'+r.key+'-preview">'+prev+'</div>'
       +'<input type="file" accept="image/*" onchange="onSigUpload(\''+r.key+'\', this)" />'
       +'<div class="sig-controls">'
-      +'<label>ขนาด <input type="range" id="sig-'+r.key+'-w" min="40" max="260" value="'+(s.w||120)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
-      +'<label>เลื่อนซ้าย-ขวา <input type="range" id="sig-'+r.key+'-dx" min="-70" max="70" value="'+(s.dx||0)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
-      +'<label>เลื่อนขึ้น-ลง <input type="range" id="sig-'+r.key+'-dy" min="-40" max="40" value="'+(s.dy||0)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
+      +'<label>ขนาดลายเซ็น <input type="range" id="sig-'+r.key+'-w" min="40" max="280" value="'+(s.w||120)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
+      +'<div class="hint">ปรับตำแหน่งรูปได้โดยลากบนเอกสารในหน้าออก ปพ.6</div>'
       +'</div></div>';
   }
   document.getElementById('sig-grid').innerHTML=html;
@@ -1535,10 +1535,8 @@ function renderSignatures() {
 function onSigAdjust(key){
   if (!SIGNATURES[key]) SIGNATURES[key]={};
   SIGNATURES[key].w=parseInt(document.getElementById('sig-'+key+'-w').value,10);
-  SIGNATURES[key].dx=parseInt(document.getElementById('sig-'+key+'-dx').value,10);
-  SIGNATURES[key].dy=parseInt(document.getElementById('sig-'+key+'-dy').value,10);
   var im=document.getElementById('sig-'+key+'-img');
-  if (im) im.style.cssText=sigImgStyle(SIGNATURES[key]);
+  if (im) im.style.cssText=sigPrevStyle(SIGNATURES[key]);
 }
 function onSigUpload(key, input) {
   if (!input.files || !input.files[0]) return;
@@ -1548,7 +1546,7 @@ function onSigUpload(key, input) {
     if (SIGNATURES[key].w==null) SIGNATURES[key].w=120;
     if (SIGNATURES[key].dx==null) SIGNATURES[key].dx=0;
     if (SIGNATURES[key].dy==null) SIGNATURES[key].dy=0;
-    document.getElementById('sig-'+key+'-preview').innerHTML='<img id="sig-'+key+'-img" src="'+dataUrl+'" alt="ลายเซ็น" style="'+sigImgStyle(SIGNATURES[key])+'" />';
+    document.getElementById('sig-'+key+'-preview').innerHTML='<img id="sig-'+key+'-img" src="'+dataUrl+'" alt="ลายเซ็น" style="'+sigPrevStyle(SIGNATURES[key])+'" />';
   });
 }
 function resizeImage(file, maxW, cb) {
