@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --ink: #16314E; --primary: #245C8C; --primary-dark: #1B4A73; --primary-soft: #E9F1F8;
@@ -277,7 +278,13 @@
     .paper { box-shadow:none !important; border:none !important; max-width:100% !important; margin:0 !important; padding:0 !important; }
     .pp6 { padding:0 !important; font-size:11.5px; min-height:0 !important; }
     .pp6-grades th, .pp6-grades td { padding:2px 5px; font-size:11px; }
+    /* พิมพ์ทั้งห้อง: แสดงเฉพาะกล่องรวม ซ่อนส่วนอื่น */
+    body.printing-all > *:not(#print-all) { display:none !important; }
+    body.printing-all #print-all { display:block !important; }
+    #print-all .print-page { page-break-after: always; }
+    #print-all .print-page:last-child { page-break-after: auto; }
   }
+  #print-all { display:none; }
 </style>
 </head>
 <body>
@@ -489,7 +496,12 @@
             <div class="field"><label>ห้องเรียน</label><select id="pp6-class" onchange="renderPp6()"></select></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="publishReportCards()"><i class="ti ti-cloud-upload"></i> เผยแพร่ให้นักเรียนดู</button></div>
+            <div class="panel-head"><h3 id="pp6-title">เลือกนักเรียนเพื่อดูรายงาน</h3>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost" style="padding:8px 14px;font-size:14px" onclick="exportExcel()"><i class="ti ti-file-spreadsheet"></i> ส่งออก Excel</button>
+                <button class="btn btn-ghost" style="padding:8px 14px;font-size:14px" onclick="printAllPp6()"><i class="ti ti-printer"></i> พิมพ์ทั้งห้อง</button>
+                <button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="publishReportCards()"><i class="ti ti-cloud-upload"></i> เผยแพร่ให้นักเรียนดู</button>
+              </div></div>
             <div class="panel-body"><div id="pp6-table"></div></div>
           </div>
         </section>
@@ -629,6 +641,8 @@
   </div>
 </section>
 
+<div id="print-all"></div>
+
 <script>
 /* ============================================================
    ข้อมูลจำลอง — ในระบบจริงมาจาก Firestore
@@ -705,16 +719,22 @@ window.onSubjectsLoaded = function(arr) {
 var STUDENTS_DATA = [];
 /* ประกอบคะแนนจาก records กลับเข้าตัวนักเรียน เพื่อให้ฟังก์ชันคำนวณเดิมใช้งานได้ */
 function applyRecords(records) {
-  for (var i=0;i<STUDENTS_DATA.length;i++){ STUDENTS_DATA[i].terms=null; STUDENTS_DATA[i].y=null; STUDENTS_DATA[i].assessTerms=null; STUDENTS_DATA[i].assessYear=null; }
+  for (var i=0;i<STUDENTS_DATA.length;i++){ STUDENTS_DATA[i].terms=null; STUDENTS_DATA[i].y=null; STUDENTS_DATA[i].assessTerms=null; STUDENTS_DATA[i].assessYear=null; STUDENTS_DATA[i].actTerms=null; STUDENTS_DATA[i].actYear=null; }
   for (var r=0;r<records.length;r++){
     var rec=records[r];
     if (rec.subjectCode==='ASSESS'){
-      var as=rec.assess||{};
+      var as=rec.assess||{}, act=rec.activities||{};
       for (var aid in as){
         if(!as.hasOwnProperty(aid)) continue;
         var st2=findStudentById(aid); if(!st2) continue;
         if (rec.term==='year'){ st2.assessYear=as[aid]; }
         else { st2.assessTerms=st2.assessTerms||{}; st2.assessTerms[rec.term]=as[aid]; }
+      }
+      for (var bid in act){
+        if(!act.hasOwnProperty(bid)) continue;
+        var st3=findStudentById(bid); if(!st3) continue;
+        if (rec.term==='year'){ st3.actYear=act[bid]; }
+        else { st3.actTerms=st3.actTerms||{}; st3.actTerms[rec.term]=act[bid]; }
       }
       continue;
     }
@@ -745,6 +765,25 @@ function loadAllData() {
 function assessOf(stu, term) {
   if (term==='year') return stu.assessYear||{read:'',char:'',comp:''};
   return (stu.assessTerms&&stu.assessTerms[term])||{read:'',char:'',comp:''};
+}
+/* ผลการเข้าร่วมกิจกรรมพัฒนาผู้เรียน */
+var ACT_ITEMS=[
+  {key:'guidance', label:'กิจกรรมแนะแนว'},
+  {key:'scout',    label:'กิจกรรมลูกเสือ / เนตรนารี'},
+  {key:'club',     label:'กิจกรรมชุมนุม'},
+  {key:'social',   label:'กิจกรรมเพื่อสังคมและสาธารณประโยชน์'}
+];
+function activitiesOf(stu, term) {
+  if (term==='year') return stu.actYear||{};
+  return (stu.actTerms&&stu.actTerms[term])||{};
+}
+function activitySummary(acts) {
+  acts=acts||{}; var any=false, allPass=true;
+  for (var i=0;i<ACT_ITEMS.length;i++){
+    var v=acts[ACT_ITEMS[i].key];
+    if (v){ any=true; if (v!=='ผ่าน') allPass=false; }
+  }
+  return any ? (allPass?'ผ่าน':'ไม่ผ่าน') : '-';
 }
 
 /* ============================================================
@@ -904,7 +943,7 @@ function publishOne(stu, c) {
             var tot=secTermTotal(stu,term,subs[i].code);
             arr.push({ code:subs[i].code, name:subs[i].name, type:subs[i].type, credit:subs[i].credit, full:100, score:tot, grade:gradeOf(tot) });
           }
-          card.terms[term]={ subjects:arr, gpa:secGPA(stu,term), gpax:secGPAX(stu), assess:assessOf(stu,term) };
+          card.terms[term]={ subjects:arr, gpa:secGPA(stu,term), gpax:secGPAX(stu), assess:assessOf(stu,term), activities:activitiesOf(stu,term) };
         }
       }
     } else {
@@ -913,7 +952,7 @@ function publishOne(stu, c) {
         var sc=(yy[subsP[k].code]!=null)?yy[subsP[k].code]:0;
         arrP.push({ code:subsP[k].code, name:subsP[k].name, type:subsP[k].type, credit:subsP[k].credit||0, full:100, score:sc, grade:gradeOf(sc) });
       }
-      card.yearData={ subjects:arrP, gpa:priGPA(stu), assess:assessOf(stu,'year') };
+      card.yearData={ subjects:arrP, gpa:priGPA(stu), assess:assessOf(stu,'year'), activities:activitiesOf(stu,'year') };
     }
     return window.fbSaveReportCard(hash, card);
   });
@@ -956,13 +995,13 @@ function renderPublicReport(term){
     var t=card.terms[term];
     if(!t){ document.getElementById('report-paper').innerHTML='<div class="doc-empty"><i class="ti ti-folder-off"></i><p>ยังไม่มีข้อมูลภาคเรียนนี้</p></div>'; return; }
     var ctx={ system:'secondary', name:card.name, sid:card.sid, no:card.no, classLevel:card.classLevel, year:card.year, term:term,
-      subjects:normSubjects(t.subjects), gpa:t.gpa, gpax:t.gpax, assess:t.assess||{} };
+      subjects:normSubjects(t.subjects), gpa:t.gpa, gpax:t.gpax, assess:t.assess||{}, activities:t.activities||{} };
     document.getElementById('report-paper').innerHTML=buildPp6Html(ctx);
   } else {
     document.getElementById('report-selectors').innerHTML='';
     var d=card.yearData;
     var ctx2={ system:'primary', name:card.name, sid:card.sid, no:card.no, classLevel:card.classLevel, year:card.year, term:'year',
-      subjects:normSubjects(d.subjects), gpa:d.gpa, assess:d.assess||{} };
+      subjects:normSubjects(d.subjects), gpa:d.gpa, assess:d.assess||{}, activities:d.activities||{} };
     document.getElementById('report-paper').innerHTML=buildPp6Html(ctx2);
   }
 }
@@ -987,18 +1026,10 @@ function reReport() {
   var tEl=document.getElementById('rp-term');
   renderReport(y, tEl?tEl.value:null);
 }
-function renderReport(year, term) {
-  var stu=VIEW_CTX.stu, cls=VIEW_CTX.cls;
-  var sel='<select id="rp-year" class="doc-sel" onchange="reReport()">'+yearOptions(year)+'</select>';
-  if (cls.system==='secondary'){
-    sel+='<select id="rp-term" class="doc-sel" onchange="reReport()">'
-      +'<option value="1"'+(term==='1'?' selected':'')+'>ภาคเรียนที่ 1</option>'
-      +'<option value="2"'+(term==='2'?' selected':'')+'>ภาคเรียนที่ 2</option></select>';
-  }
-  document.getElementById('report-selectors').innerHTML=sel;
-
+function buildCtx(stu, cls, year, term){
   var ctx={ system:cls.system, name:stu.name, sid:stu.sid, no:stu.no, classLevel:cls.level, year:year,
     term:(cls.system==='secondary')?term:'year', subjects:[], assess:{} };
+  ctx.activities=activitiesOf(stu, ctx.term);
   if (cls.system==='secondary'){
     var subs=SUBJECTS.secondary;
     for (var i=0;i<subs.length;i++){
@@ -1014,17 +1045,30 @@ function renderReport(year, term) {
     }
     ctx.gpa=priGPA(stu); ctx.assess=stu.assessYear||{};
   }
+  return ctx;
+}
+function renderReport(year, term) {
+  var stu=VIEW_CTX.stu, cls=VIEW_CTX.cls;
+  var sel='<select id="rp-year" class="doc-sel" onchange="reReport()">'+yearOptions(year)+'</select>';
+  if (cls.system==='secondary'){
+    sel+='<select id="rp-term" class="doc-sel" onchange="reReport()">'
+      +'<option value="1"'+(term==='1'?' selected':'')+'>ภาคเรียนที่ 1</option>'
+      +'<option value="2"'+(term==='2'?' selected':'')+'>ภาคเรียนที่ 2</option></select>';
+  }
+  document.getElementById('report-selectors').innerHTML=sel;
+  var ctx=buildCtx(stu, cls, year, term);
   document.getElementById('report-paper').innerHTML=buildPp6Html(ctx);
   applySigEdit();
 }
 
 /* ตัวสร้างเอกสาร ปพ.6 แบบราชการ — ใช้ร่วมกันทั้งฝั่งครูและฝั่งนักเรียน */
-function pp6ActivityRows(isSec){
-  var acts=['กิจกรรมแนะแนว','กิจกรรมลูกเสือ / เนตรนารี','กิจกรรมชุมนุม','กิจกรรมเพื่อสังคมและสาธารณประโยชน์'];
+function pp6ActivityRows(isSec, acts){
+  acts=acts||{};
   var creditCell = isSec ? '<td class="c">-</td>' : '';
   var r='';
-  for (var i=0;i<acts.length;i++){
-    r+='<tr><td>'+acts[i]+'</td><td class="c">กิจกรรม</td>'+creditCell+'<td class="c">-</td><td class="c">-</td><td class="c">ผ่าน</td><td class="c">-</td><td></td></tr>';
+  for (var i=0;i<ACT_ITEMS.length;i++){
+    var res=acts[ACT_ITEMS[i].key]||'-';
+    r+='<tr><td>'+ACT_ITEMS[i].label+'</td><td class="c">กิจกรรม</td>'+creditCell+'<td class="c">-</td><td class="c">-</td><td class="c">'+res+'</td><td class="c">-</td><td></td></tr>';
   }
   return r;
 }
@@ -1060,7 +1104,7 @@ function buildPp6Html(ctx){
     }
   }
   var colspan = isSec ? 8 : 7;
-  rows+='<tr class="pp6-sec-row"><td colspan="'+colspan+'">กิจกรรมพัฒนาผู้เรียน</td></tr>'+pp6ActivityRows(isSec);
+  rows+='<tr class="pp6-sec-row"><td colspan="'+colspan+'">กิจกรรมพัฒนาผู้เรียน</td></tr>'+pp6ActivityRows(isSec, ctx.activities);
   var thead='<tr><th>รายวิชา</th><th>ประเภท</th>'+creditTh+'<th>เต็ม</th><th>ได้</th><th>เกรด</th><th>แก้ตัว</th><th>หมายเหตุ</th></tr>';
   var table='<table class="pp6-grades"><thead>'+thead+'</thead><tbody>'+rows+'</tbody></table>';
 
@@ -1075,7 +1119,7 @@ function buildPp6Html(ctx){
     +'<tr><td>คุณลักษณะอันพึงประสงค์</td><td class="c" colspan="2">'+(a.char||'-')+'</td></tr>'
     +'<tr><td>การอ่าน คิดวิเคราะห์และเขียน</td><td class="c" colspan="2">'+(a.read||'-')+'</td></tr>'
     +'<tr><td>สมรรถนะสำคัญของผู้เรียน</td><td class="c" colspan="2">'+(a.comp||'-')+'</td></tr>'
-    +'<tr><td>การเข้าร่วมกิจกรรมพัฒนาผู้เรียน</td><td class="c" colspan="2">ผ่าน</td></tr>';
+    +'<tr><td>การเข้าร่วมกิจกรรมพัฒนาผู้เรียน</td><td class="c" colspan="2">'+activitySummary(ctx.activities)+'</td></tr>';
   var summary='<div class="pp6-summary"><table><thead><tr><th>สรุปผลการประเมิน</th><th class="c">เรียน</th><th class="c">ได้</th></tr></thead><tbody>'+sumRows+'</tbody></table></div>';
   var signs='<div class="pp6-signs">'+signBlock('teacher1')+signBlock('teacher2')+signBlock('director')+'</div>';
 
@@ -1370,6 +1414,11 @@ function onAssessClassChange() {
   document.getElementById('as-term-wrap').style.display=(c.system==='secondary')?'block':'none';
   renderAssess();
 }
+function actLevelOptions(sel){
+  var lv=["ผ่าน","ไม่ผ่าน"], o='<option value="">-</option>';
+  for (var i=0;i<lv.length;i++) o+='<option value="'+lv[i]+'"'+(lv[i]===sel?' selected':'')+'>'+lv[i]+'</option>';
+  return o;
+}
 function renderAssess() {
   var cid=document.getElementById('as-class').value;
   var c=classById(cid);
@@ -1388,8 +1437,18 @@ function renderAssess() {
       +'<td><select class="doc-sel" data-sid="'+st.id+'" data-k="char">'+levelOptions(a.char)+'</select></td>'
       +'<td><select class="doc-sel" data-sid="'+st.id+'" data-k="comp">'+levelOptions(a.comp)+'</select></td></tr>';
   }
+  var actRows="";
+  for (var j=0;j<list.length;j++){
+    var st2=list[j], act=activitiesOf(st2, term), cells="";
+    for (var k=0;k<ACT_ITEMS.length;k++){
+      cells+='<td><select class="act-sel" data-sid="'+st2.id+'" data-act="'+ACT_ITEMS[k].key+'">'+actLevelOptions(act[ACT_ITEMS[k].key])+'</select></td>';
+    }
+    actRows+='<tr><td class="num">'+st2.no+'</td><td>'+st2.name+'</td>'+cells+'</tr>';
+  }
   document.getElementById('as-table').innerHTML=
-    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>อ่านคิดวิเคราะห์เขียน</th><th>คุณลักษณะอันพึงประสงค์</th><th>สมรรถนะสำคัญ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>อ่านคิดวิเคราะห์เขียน</th><th>คุณลักษณะอันพึงประสงค์</th><th>สมรรถนะสำคัญ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<h3 style="font-family:\'Kanit\',sans-serif;font-size:15px;margin:22px 0 10px;color:var(--ink)">การเข้าร่วมกิจกรรมพัฒนาผู้เรียน</h3>'
+    +'<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th>แนะแนว</th><th>ลูกเสือ/เนตรนารี</th><th>ชุมนุม</th><th>เพื่อสังคมฯ</th></tr></thead><tbody>'+actRows+'</tbody></table>';
 }
 function saveAssess() {
   var cid=document.getElementById('as-class').value;
@@ -1403,8 +1462,15 @@ function saveAssess() {
     if(!assess[sid]) assess[sid]={read:'',char:'',comp:''};
     assess[sid][key]=sels[i].value;
   }
+  var activities={};
+  var asel=document.querySelectorAll('#as-table select.act-sel');
+  for (var j=0;j<asel.length;j++){
+    var aid=asel[j].getAttribute('data-sid'), ak=asel[j].getAttribute('data-act');
+    if(!activities[aid]) activities[aid]={};
+    activities[aid][ak]=asel[j].value;
+  }
   var recordId=CURRENT_YEAR+'_'+cid+'_ASSESS_'+term;
-  window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:'ASSESS', term:term, assess:assess })
+  window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:'ASSESS', term:term, assess:assess, activities:activities })
     .then(function(){ alert('บันทึกผลการประเมินเรียบร้อยแล้ว'); loadAllData(); })
     .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
 }
@@ -1674,6 +1740,74 @@ function adminViewReport(cid, idx) {
   document.getElementById('btn-sig-save').style.display='none';
   document.getElementById('btn-sig-arrange').innerHTML='<i class="ti ti-drag-drop"></i> จัดวางลายเซ็น';
   go('student-result');
+}
+/* พิมพ์ ปพ.6 ทั้งห้องทีเดียว (ขึ้นหน้าใหม่ต่อคน) */
+function printAllPp6() {
+  var cid=document.getElementById('pp6-class').value;
+  var c=classById(cid); var list=rosterOf(cid);
+  if (!list.length){ alert('ยังไม่มีนักเรียนในห้องนี้'); return; }
+  var html='';
+  for (var i=0;i<list.length;i++){
+    var stu=list[i];
+    if (c.system==='secondary'){
+      var terms=['1','2'];
+      for (var t=0;t<terms.length;t++){
+        if (stu.terms && stu.terms[terms[t]]){
+          html+='<div class="print-page">'+buildPp6Html(buildCtx(stu,c,CURRENT_YEAR,terms[t]))+'</div>';
+        }
+      }
+    } else {
+      html+='<div class="print-page">'+buildPp6Html(buildCtx(stu,c,CURRENT_YEAR,'year'))+'</div>';
+    }
+  }
+  if (!html){ alert('ยังไม่มีคะแนนที่บันทึกไว้สำหรับห้องนี้ จึงยังพิมพ์ไม่ได้'); return; }
+  var box=document.getElementById('print-all');
+  box.innerHTML=html;
+  document.body.classList.add('printing-all');
+  window.print();
+  setTimeout(function(){ document.body.classList.remove('printing-all'); box.innerHTML=''; }, 800);
+}
+/* ส่งออกผลการเรียนของห้องที่เลือกเป็นไฟล์ Excel */
+function exportExcel() {
+  if (typeof XLSX==='undefined'){ alert('ไลบรารี Excel ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'); return; }
+  var cid=document.getElementById('pp6-class').value;
+  var c=classById(cid); var list=rosterOf(cid);
+  if (!list.length){ alert('ยังไม่มีนักเรียนในห้องนี้'); return; }
+  var wb=XLSX.utils.book_new();
+  function r2(n){ return Math.round(n*100)/100; }
+  if (c.system==='secondary'){
+    var subs=SUBJECTS.secondary;
+    for (var t=1;t<=2;t++){
+      var term=String(t), aoa=[], head=['เลขที่','ชื่อ-สกุล'];
+      for (var h=0;h<subs.length;h++) head.push(subs[h].code+' '+subs[h].name);
+      head.push('GPA ภาคนี้','GPAX','อ่านคิดวิเคราะห์เขียน','คุณลักษณะ','สมรรถนะ','กิจกรรมพัฒนาผู้เรียน');
+      aoa.push(head);
+      for (var i=0;i<list.length;i++){
+        var stu=list[i], row=[stu.no, stu.name];
+        for (var s=0;s<subs.length;s++) row.push(secTermTotal(stu,term,subs[s].code));
+        var a=assessOf(stu,term);
+        row.push(r2(secGPA(stu,term)), r2(secGPAX(stu)), a.read||'', a.char||'', a.comp||'', activitySummary(activitiesOf(stu,term)));
+        aoa.push(row);
+      }
+      var ws=XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, 'ภาคเรียนที่ '+term);
+    }
+  } else {
+    var subsP=SUBJECTS.primary, aoa2=[], head2=['เลขที่','ชื่อ-สกุล'];
+    for (var h2=0;h2<subsP.length;h2++) head2.push(subsP[h2].code+' '+subsP[h2].name);
+    head2.push('GPA','อ่านคิดวิเคราะห์เขียน','คุณลักษณะ','สมรรถนะ','กิจกรรมพัฒนาผู้เรียน');
+    aoa2.push(head2);
+    for (var j=0;j<list.length;j++){
+      var st2=list[j], yy=st2.y||{}, row2=[st2.no, st2.name];
+      for (var p=0;p<subsP.length;p++){ var sc=yy[subsP[p].code]; row2.push(sc!=null?sc:0); }
+      var a2=assessOf(st2,'year');
+      row2.push(r2(priGPA(st2)), a2.read||'', a2.char||'', a2.comp||'', activitySummary(activitiesOf(st2,'year')));
+      aoa2.push(row2);
+    }
+    var ws2=XLSX.utils.aoa_to_sheet(aoa2);
+    XLSX.utils.book_append_sheet(wb, ws2, 'ผลการเรียนทั้งปี');
+  }
+  XLSX.writeFile(wb, 'ผลการเรียน_'+c.name+'_ปี'+CURRENT_YEAR+'.xlsx');
 }
 
 /* ============================================================
