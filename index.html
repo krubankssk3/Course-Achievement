@@ -79,6 +79,10 @@
   .alert-error { background: var(--warn-soft); color: var(--warn); }
   .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin-top: 16px; text-decoration: none; cursor: pointer; }
   .demo-note { background: #FFF8E6; border: 1px dashed var(--gold); color: #7a5d12; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 14px; }
+  .pass-wrap { position: relative; }
+  .pass-wrap input { width: 100%; padding-right: 44px; }
+  .pass-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); padding: 6px 8px; border-radius: 8px; display: flex; align-items: center; font-size: 18px; }
+  .pass-toggle:hover { color: var(--primary); background: var(--primary-soft); }
   .demo-note b { color: #5e4709; }
 
   /* เอกสาร ปพ.6 */
@@ -149,6 +153,18 @@
   .stat .ic { font-size: 22px; color: var(--primary); }
   .stat .num { font-family:'Kanit',sans-serif; font-size: 30px; font-weight: 600; color: var(--ink); line-height: 1.1; margin-top: 8px; }
   .stat .lab { color: var(--muted); font-size: 14px; }
+  .chart-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 22px; }
+  .chart-card { margin-bottom: 0; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .bar-row .bar-lab { width: 64px; font-size: 13px; color: var(--ink); flex-shrink: 0; }
+  .bar-track { flex: 1; background: var(--primary-soft); border-radius: 6px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--primary); border-radius: 6px; width: 0; transition: width 1s cubic-bezier(.2,.7,.3,1); }
+  .bar-row .bar-val { width: 30px; text-align: right; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; padding: 8px 0; }
+  .donut-legend { font-size: 14px; line-height: 2; }
+  .donut-legend .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+  @media (max-width: 760px){ .chart-grid { grid-template-columns: 1fr; } }
+  @media print { .chart-grid { display: none !important; } }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 22px; }
   .panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -191,6 +207,16 @@
   .dev-meta .item i { color:var(--primary); font-size:20px; }
   .dev-meta .item .k { font-size:13px; color:var(--muted); margin-top:6px; }
   .dev-meta .item .v { font-family:'Kanit',sans-serif; color:var(--ink); font-size:15px; }
+  .dev-card .photo { width:84px; height:84px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--gold); }
+  .dev-form { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .dev-photo-col { width:180px; flex-shrink:0; }
+  .dev-fields { flex:1; min-width:240px; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .dev-contact { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; margin-top:18px; }
+  .dev-contact h3 { font-family:'Kanit',sans-serif; color:var(--ink); margin:0 0 10px; font-size:18px; }
+  .dev-contact p { color:var(--ink); line-height:1.7; }
+  .dev-contact .channels { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; }
+  .dev-contact .ch { display:flex; align-items:center; gap:8px; background:var(--primary-soft); color:var(--primary-dark); padding:10px 16px; border-radius:10px; font-size:15px; }
+  .dev-contact .ch i { font-size:18px; }
 
   .modal-overlay { position:fixed; inset:0; background:rgba(22,49,78,.5); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
   .modal-overlay.open { display:flex; }
@@ -316,6 +342,8 @@
       <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
       <div class="brand">ระบบบันทึก ปพ.5 / ปพ.6<small>โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</small></div>
       <div class="spacer"></div>
+      <button class="btn btn-light" onclick="goDeveloper(false)"><i class="ti ti-code"></i> ผู้พัฒนา</button>
+      <button class="btn btn-light" onclick="goDeveloper(true)"><i class="ti ti-mail"></i> ติดต่อผู้พัฒนา</button>
       <button class="btn btn-light" onclick="go('admin-login')"><i class="ti ti-lock"></i> เข้าสู่ระบบครู</button>
     </nav>
     <hr class="gold-rule" />
@@ -345,6 +373,23 @@
       <div class="feature"><i class="ti ti-school"></i><h4>รองรับประถมและมัธยม</h4><p>ประถมใช้เกรดทั้งปี มัธยมแยกภาคเรียนพร้อมหน่วยกิตและ GPAX สะสม ระบบเลือกรูปแบบให้อัตโนมัติ</p></div>
       <div class="feature"><i class="ti ti-lock-check"></i><h4>ปลอดภัยตาม PDPA</h4><p>นักเรียนเห็นเฉพาะข้อมูลของตน ครูเห็นเฉพาะชั้นที่รับผิดชอบ ควบคุมสิทธิ์ทุกระดับ</p></div>
     </div>
+  </div>
+  <footer class="pub-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
+</section>
+
+<!-- ============ หน้าผู้พัฒนา (สาธารณะ) ============ -->
+<section id="view-developer" class="view">
+  <div class="pub-top">
+    <nav class="pub-nav">
+      <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
+      <div class="brand">ผู้พัฒนาระบบ<small>ระบบบันทึก ปพ.5 / ปพ.6</small></div>
+      <div class="spacer"></div>
+      <button class="btn btn-light" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</button>
+    </nav>
+    <hr class="gold-rule" />
+  </div>
+  <div class="pub-body">
+    <div id="dev-public"></div>
   </div>
   <footer class="pub-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
 </section>
@@ -413,7 +458,12 @@
       <div class="card-body">
         <div id="adm-alert" class="alert alert-error">อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>
         <div class="field"><label for="adm-email">อีเมล</label><input id="adm-email" type="email" placeholder="admin@banlalom.ac.th" /></div>
-        <div class="field"><label for="adm-pass">รหัสผ่าน</label><input id="adm-pass" type="password" placeholder="••••••••" /></div>
+        <div class="field"><label for="adm-pass">รหัสผ่าน</label>
+          <div class="pass-wrap">
+            <input id="adm-pass" type="password" placeholder="••••••••" />
+            <button type="button" class="pass-toggle" id="adm-pass-toggle" onclick="togglePass('adm-pass','adm-pass-toggle')" title="แสดง/ซ่อนรหัสผ่าน"><i class="ti ti-eye"></i></button>
+          </div>
+        </div>
         <button class="btn btn-primary btn-block" onclick="adminLogin()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
         <div class="demo-note">ใช้อีเมลและรหัสผ่านของบัญชีครูที่สร้างไว้ใน Firebase Authentication</div>
         <a class="back-link" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</a>
@@ -461,6 +511,10 @@
             <div class="stat"><div class="ic"><i class="ti ti-door"></i></div><div class="num" id="st-classes">0</div><div class="lab">ห้องเรียน</div></div>
             <div class="stat"><div class="ic"><i class="ti ti-calendar"></i></div><div class="num" id="st-years">0</div><div class="lab">ปีการศึกษาที่จัดเก็บ</div></div>
             <div class="stat"><div class="ic"><i class="ti ti-book"></i></div><div class="num" id="st-subjects">0</div><div class="lab">รายวิชา</div></div>
+          </div>
+          <div class="chart-grid">
+            <div class="panel chart-card"><div class="panel-head"><h3>จำนวนนักเรียนแต่ละห้อง</h3></div><div class="panel-body"><div id="chart-bars"></div></div></div>
+            <div class="panel chart-card"><div class="panel-head"><h3>สัดส่วนนักเรียนชาย / หญิง</h3></div><div class="panel-body"><div id="chart-donut"></div></div></div>
           </div>
           <div class="panel">
             <div class="panel-head"><h3>ห้องเรียนในระบบ</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="openClassModal('add')"><i class="ti ti-plus"></i> เพิ่มห้องเรียน</button></div>
@@ -559,16 +613,32 @@
 
         <!-- ผู้พัฒนา -->
         <section class="pane" id="pane-developer">
-          <div class="page-title"><div><h2>ผู้พัฒนาระบบ</h2><p>ข้อมูลผู้พัฒนาและรายละเอียดระบบ</p></div></div>
-          <div class="dev-card">
-            <div class="avatar"><i class="ti ti-user"></i></div>
-            <div><h3>นายชิติพัทธ์ นิลวรรณ (ครูแบงค์)</h3><div class="role">ตำแหน่ง ครู · โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</div></div>
-          </div>
-          <div class="dev-meta">
-            <div class="item"><i class="ti ti-brand-github"></i><div class="k">GitHub</div><div class="v">krubankssk3</div></div>
-            <div class="item"><i class="ti ti-stack-2"></i><div class="k">สถาปัตยกรรม</div><div class="v">Firebase + GitHub Pages</div></div>
-            <div class="item"><i class="ti ti-versions"></i><div class="k">เวอร์ชันระบบ</div><div class="v">1.0 (prototype)</div></div>
-            <div class="item"><i class="ti ti-file-text"></i><div class="k">มาตรฐานเอกสาร</div><div class="v">ปพ.5 / ปพ.6 · หลักสูตรแกนกลาง 2551</div></div>
+          <div class="page-title"><div><h2>ผู้พัฒนาระบบ</h2><p>แก้ไขข้อมูลผู้พัฒนาและข้อความติดต่อ ที่จะแสดงในหน้าสาธารณะ</p></div></div>
+          <div class="panel">
+            <div class="panel-head"><h3>ข้อมูลผู้พัฒนา</h3><button class="btn btn-primary" style="padding:8px 16px;font-size:14px" onclick="saveDeveloper()"><i class="ti ti-device-floppy"></i> บันทึก</button></div>
+            <div class="panel-body">
+              <div class="dev-form">
+                <div class="dev-photo-col">
+                  <div class="sig-preview" id="dev-photo-preview" style="height:140px"><span>ยังไม่มีรูป</span></div>
+                  <input type="file" accept="image/*" onchange="onDevPhoto(this)" />
+                </div>
+                <div class="dev-fields">
+                  <div class="field"><label>ชื่อ-สกุล (ผู้พัฒนา)</label><input id="dev-name" type="text" /></div>
+                  <div class="field"><label>ตำแหน่ง / สังกัด</label><input id="dev-position" type="text" /></div>
+                  <div class="field"><label>GitHub</label><input id="dev-github" type="text" /></div>
+                  <div class="field"><label>สถาปัตยกรรม</label><input id="dev-arch" type="text" /></div>
+                  <div class="field"><label>เวอร์ชันระบบ</label><input id="dev-version" type="text" /></div>
+                  <div class="field"><label>มาตรฐานเอกสาร</label><input id="dev-standard" type="text" /></div>
+                </div>
+              </div>
+              <h3 style="font-family:'Kanit',sans-serif;font-size:15px;margin:20px 0 10px;color:var(--ink)">ส่วนติดต่อผู้พัฒนา</h3>
+              <div class="field"><label>ข้อความติดต่อ</label><textarea id="dev-contact-text" rows="3" style="width:100%;resize:vertical"></textarea></div>
+              <div class="dev-form">
+                <div class="field" style="flex:1"><label>อีเมล</label><input id="dev-email" type="text" /></div>
+                <div class="field" style="flex:1"><label>โทรศัพท์</label><input id="dev-phone" type="text" /></div>
+                <div class="field" style="flex:1"><label>Line ID</label><input id="dev-line" type="text" /></div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -855,6 +925,85 @@ function go(name) {
   for (var i=0;i<views.length;i++) views[i].classList.remove('active');
   document.getElementById('view-'+name).classList.add('active');
   window.scrollTo(0,0);
+}
+function togglePass(inputId, btnId){
+  var inp=document.getElementById(inputId), btn=document.getElementById(btnId);
+  if(!inp||!btn) return;
+  if (inp.type==='password'){ inp.type='text'; btn.innerHTML='<i class="ti ti-eye-off"></i>'; }
+  else { inp.type='password'; btn.innerHTML='<i class="ti ti-eye"></i>'; }
+}
+
+/* ===== ข้อมูลผู้พัฒนา ===== */
+var DEVELOPER={
+  name:'นายชิติพัทธ์ นิลวรรณ (ครูแบงค์)',
+  position:'ตำแหน่ง ครู · โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3',
+  github:'krubankssk3', arch:'Firebase + GitHub Pages', version:'1.0 (prototype)',
+  standard:'ปพ.5 / ปพ.6 · หลักสูตรแกนกลาง 2551',
+  photo:'', contactText:'หากพบปัญหาการใช้งาน หรือต้องการให้เพิ่มความสามารถของระบบ สามารถติดต่อผู้พัฒนาได้ตามช่องทางด้านล่างนี้',
+  email:'', phone:'', line:''
+};
+window.onDeveloperLoaded=function(d){ if(d){ for(var k in d){ if(d.hasOwnProperty(k)) DEVELOPER[k]=d[k]; } } renderDeveloperPublic(); };
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function goDeveloper(toContact){
+  renderDeveloperPublic();
+  go('developer');
+  if (toContact){ setTimeout(function(){ var el=document.getElementById('dev-contact-card'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 120); }
+}
+function renderDeveloperPublic(){
+  var d=DEVELOPER;
+  var photo = d.photo ? '<img class="photo" src="'+d.photo+'" alt="ผู้พัฒนา" />' : '<div class="avatar"><i class="ti ti-user"></i></div>';
+  var meta='<div class="dev-meta">'
+    +'<div class="item"><i class="ti ti-brand-github"></i><div class="k">GitHub</div><div class="v">'+esc(d.github)+'</div></div>'
+    +'<div class="item"><i class="ti ti-stack-2"></i><div class="k">สถาปัตยกรรม</div><div class="v">'+esc(d.arch)+'</div></div>'
+    +'<div class="item"><i class="ti ti-versions"></i><div class="k">เวอร์ชันระบบ</div><div class="v">'+esc(d.version)+'</div></div>'
+    +'<div class="item"><i class="ti ti-file-text"></i><div class="k">มาตรฐานเอกสาร</div><div class="v">'+esc(d.standard)+'</div></div></div>';
+  var ch='';
+  if (d.email) ch+='<div class="ch"><i class="ti ti-mail"></i>'+esc(d.email)+'</div>';
+  if (d.phone) ch+='<div class="ch"><i class="ti ti-phone"></i>'+esc(d.phone)+'</div>';
+  if (d.line) ch+='<div class="ch"><i class="ti ti-brand-line"></i>'+esc(d.line)+'</div>';
+  var contact='<div class="dev-contact" id="dev-contact-card"><h3><i class="ti ti-mail"></i> ติดต่อผู้พัฒนา</h3>'
+    +'<p>'+esc(d.contactText)+'</p>'+(ch?'<div class="channels">'+ch+'</div>':'')+'</div>';
+  var html='<div class="dev-card">'+photo+'<div><h3>'+esc(d.name)+'</h3><div class="role">'+esc(d.position)+'</div></div></div>'+meta+contact;
+  var box=document.getElementById('dev-public'); if(box) box.innerHTML=html;
+}
+/* ฟอร์มแก้ไขผู้พัฒนา (ฝั่งครู) */
+function fillDeveloperForm(){
+  var d=DEVELOPER;
+  document.getElementById('dev-name').value=d.name||'';
+  document.getElementById('dev-position').value=d.position||'';
+  document.getElementById('dev-github').value=d.github||'';
+  document.getElementById('dev-arch').value=d.arch||'';
+  document.getElementById('dev-version').value=d.version||'';
+  document.getElementById('dev-standard').value=d.standard||'';
+  document.getElementById('dev-contact-text').value=d.contactText||'';
+  document.getElementById('dev-email').value=d.email||'';
+  document.getElementById('dev-phone').value=d.phone||'';
+  document.getElementById('dev-line').value=d.line||'';
+  var pv=document.getElementById('dev-photo-preview');
+  pv.innerHTML = d.photo ? '<img src="'+d.photo+'" alt="รูป" style="max-height:130px;border-radius:10px" />' : '<span>ยังไม่มีรูป</span>';
+}
+function onDevPhoto(input){
+  if(!input.files||!input.files[0]) return;
+  resizeImage(input.files[0], 400, function(dataUrl){
+    DEVELOPER.photo=dataUrl;
+    document.getElementById('dev-photo-preview').innerHTML='<img src="'+dataUrl+'" alt="รูป" style="max-height:130px;border-radius:10px" />';
+  });
+}
+function saveDeveloper(){
+  if(!window.fbSaveSettings){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  DEVELOPER.name=document.getElementById('dev-name').value.trim();
+  DEVELOPER.position=document.getElementById('dev-position').value.trim();
+  DEVELOPER.github=document.getElementById('dev-github').value.trim();
+  DEVELOPER.arch=document.getElementById('dev-arch').value.trim();
+  DEVELOPER.version=document.getElementById('dev-version').value.trim();
+  DEVELOPER.standard=document.getElementById('dev-standard').value.trim();
+  DEVELOPER.contactText=document.getElementById('dev-contact-text').value.trim();
+  DEVELOPER.email=document.getElementById('dev-email').value.trim();
+  DEVELOPER.phone=document.getElementById('dev-phone').value.trim();
+  DEVELOPER.line=document.getElementById('dev-line').value.trim();
+  window.fbSaveSettings('developer', DEVELOPER).then(function(){
+    alert('บันทึกข้อมูลผู้พัฒนาเรียบร้อยแล้ว'); renderDeveloperPublic();
+  }).catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
 }
 
 /* ============================================================
@@ -1173,6 +1322,7 @@ function showPane(name, el) {
   var links=document.querySelectorAll('.side .nav-link');
   for (var j=0;j<links.length;j++) links[j].classList.remove('active');
   if (el) el.classList.add('active');
+  if (name==='developer') fillDeveloperForm();
 }
 function classOptions(sel) {
   var o="";
@@ -1198,13 +1348,53 @@ function initAdmin() {
   renderSwatches(); renderThemeMenu();
 }
 
+function animateCount(el, target){
+  if(!el) return;
+  target=target||0;
+  var dur=900, start=null, from=0;
+  function step(ts){
+    if(start===null) start=ts;
+    var p=Math.min((ts-start)/dur,1);
+    var ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(from+(target-from)*ease);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 function renderDashboard() {
   var total=0;
   for (var i=0;i<CLASSES.length;i++) total+=rosterOf(CLASSES[i].id).length;
-  document.getElementById('st-students').textContent=total;
-  document.getElementById('st-classes').textContent=CLASSES.length;
-  document.getElementById('st-years').textContent=YEARS.length;
-  document.getElementById('st-subjects').textContent=SUBJECTS.secondary.length+SUBJECTS.primary.length;
+  animateCount(document.getElementById('st-students'), total);
+  animateCount(document.getElementById('st-classes'), CLASSES.length);
+  animateCount(document.getElementById('st-years'), YEARS.length);
+  animateCount(document.getElementById('st-subjects'), SUBJECTS.secondary.length+SUBJECTS.primary.length);
+
+  /* กราฟแท่ง: จำนวนนักเรียนต่อห้อง */
+  var maxN=1;
+  for (var b=0;b<CLASSES.length;b++){ var n=rosterOf(CLASSES[b].id).length; if(n>maxN) maxN=n; }
+  var barsHtml='';
+  for (var c2=0;c2<CLASSES.length;c2++){
+    var cnt=rosterOf(CLASSES[c2].id).length;
+    var pct=Math.round((cnt/maxN)*100);
+    barsHtml+='<div class="bar-row"><div class="bar-lab">'+CLASSES[c2].name+'</div>'
+      +'<div class="bar-track"><div class="bar-fill" data-pct="'+pct+'"></div></div>'
+      +'<div class="bar-val">'+cnt+'</div></div>';
+  }
+  if(!CLASSES.length) barsHtml='<div class="empty"><i class="ti ti-chart-bar-off"></i><p>ยังไม่มีห้องเรียน</p></div>';
+  document.getElementById('chart-bars').innerHTML=barsHtml;
+  /* หน่วงให้ transition ทำงาน */
+  setTimeout(function(){
+    var fills=document.querySelectorAll('#chart-bars .bar-fill');
+    for (var f=0;f<fills.length;f++) fills[f].style.width=fills[f].getAttribute('data-pct')+'%';
+  }, 60);
+
+  /* กราฟวงกลม (donut): สัดส่วนชาย/หญิง */
+  var male=0, female=0;
+  for (var k2=0;k2<CLASSES.length;k2++){
+    var list=rosterOf(CLASSES[k2].id);
+    for (var s=0;s<list.length;s++){ if((list[s].gender||'ชาย')==='หญิง') female++; else male++; }
+  }
+  document.getElementById('chart-donut').innerHTML=donutSVG(male, female);
 
   var rows="";
   for (var k=0;k<CLASSES.length;k++){
@@ -1218,6 +1408,24 @@ function renderDashboard() {
   }
   document.getElementById('dash-classes').innerHTML=
     '<table class="data"><thead><tr><th>ห้อง</th><th>ระดับชั้น</th><th>รูปแบบการเก็บผล</th><th class="num">นักเรียน</th><th class="num">จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function donutSVG(male, female){
+  var tot=male+female;
+  if(!tot) return '<div class="empty"><i class="ti ti-chart-pie-off"></i><p>ยังไม่มีข้อมูลนักเรียน</p></div>';
+  var cM='#2F6FB0', cF='#D26B9B';
+  var r=52, cx=70, cy=70, circ=2*Math.PI*r;
+  var mLen=(male/tot)*circ;
+  var ring='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+cF+'" stroke-width="22" />'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+cM+'" stroke-width="22" '
+    +'stroke-dasharray="'+mLen+' '+(circ-mLen)+'" stroke-dashoffset="'+(circ*0.25)+'" transform="rotate(-90 '+cx+' '+cy+')" style="transition:stroke-dasharray 1s ease" />';
+  var svg='<svg width="140" height="140" viewBox="0 0 140 140">'+ring
+    +'<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" font-size="22" font-weight="700" fill="var(--ink)" font-family="Kanit,sans-serif">'+tot+'</text>'
+    +'<text x="'+cx+'" y="'+(cy+16)+'" text-anchor="middle" font-size="11" fill="#888">คน</text></svg>';
+  var mp=Math.round((male/tot)*100), fp=100-mp;
+  var legend='<div class="donut-legend">'
+    +'<div><span class="dot" style="background:'+cM+'"></span>ชาย '+male+' คน ('+mp+'%)</div>'
+    +'<div><span class="dot" style="background:'+cF+'"></span>หญิง '+female+' คน ('+fp+'%)</div></div>';
+  return '<div class="donut-wrap">'+svg+legend+'</div>';
 }
 
 /* ---- จัดการห้องเรียน (เขียนลง Firestore) ---- */
@@ -1947,10 +2155,18 @@ function applyTheme(key) {
   r.setProperty('--primary-soft',t.soft); r.setProperty('--gold',t.gold);
   CURRENT_THEME=key; renderSwatches(); renderThemeMenu();
 }
+/* ผู้ใช้เลือกธีม → ใช้ทันที + บันทึกถาวร (เครื่องนี้ + Firestore) */
+function selectTheme(key) {
+  applyTheme(key);
+  try { localStorage.setItem('pp_theme', key); } catch(e){}
+  if (window.fbSaveSettings) window.fbSaveSettings('theme', { key:key }).catch(function(){});
+}
+/* Firebase เรียกเมื่อโหลดธีมจาก Firestore เสร็จ */
+window.onThemeLoaded = function(key){ if(THEMES[key]) applyTheme(key); };
 function renderSwatches() {
   var html="";
   for (var key in THEMES){ if(!THEMES.hasOwnProperty(key)) continue; var t=THEMES[key];
-    html+='<button class="swatch'+(key===CURRENT_THEME?' active':'')+'" onclick="applyTheme(\''+key+'\')">'
+    html+='<button class="swatch'+(key===CURRENT_THEME?' active':'')+'" onclick="selectTheme(\''+key+'\')">'
       +'<span class="dots"><span class="dot" style="background:'+t.ink+'"></span><span class="dot" style="background:'+t.primary+'"></span><span class="dot" style="background:'+t.gold+'"></span></span>'
       +'<span class="lab">'+t.name+'<small>'+t.sub+'</small></span></button>'; }
   var g=document.getElementById('swatch-grid'); if(g) g.innerHTML=html;
@@ -1959,7 +2175,7 @@ function renderThemeMenu() {
   var html="";
   for (var key in THEMES){ if(!THEMES.hasOwnProperty(key)) continue; var t=THEMES[key];
     var check=(key===CURRENT_THEME)?'<i class="ti ti-check" style="margin-left:auto;color:var(--primary)"></i>':'';
-    html+='<button onclick="applyTheme(\''+key+'\'); closeThemeMenu()"><span class="dot" style="background:'+t.primary+'"></span>'+t.name+check+'</button>'; }
+    html+='<button onclick="selectTheme(\''+key+'\'); closeThemeMenu()"><span class="dot" style="background:'+t.primary+'"></span>'+t.name+check+'</button>'; }
   var m=document.getElementById('theme-menu'); if(m) m.innerHTML=html;
 }
 function toggleThemeMenu(e){ if(e) e.stopPropagation(); var m=document.getElementById('theme-menu'); if(m) m.classList.toggle('open'); }
@@ -1968,6 +2184,11 @@ document.addEventListener('click', function(e){
   var inside=e.target&&e.target.closest&&e.target.closest('.theme-quick');
   if(!inside) closeThemeMenu();
 });
+
+/* ใช้ธีมที่บันทึกไว้ในเครื่องทันที (กันสีกระพริบ) ก่อน Firestore จะตอบกลับ */
+(function(){
+  try { var k=localStorage.getItem('pp_theme'); if(k&&THEMES[k]) applyTheme(k); } catch(e){}
+})();
 
 /* เติมปีการศึกษาในฟอร์มนักเรียน (หน้า Public) */
 (function(){
@@ -2077,6 +2298,16 @@ document.addEventListener('click', function(e){
   /* โหลดรายการปีการศึกษาตอนเปิดเว็บ */
   window.fbLoadSettings('years').then(function(data){
     if (data && data.list && window.onYearsLoaded) window.onYearsLoaded(data.list);
+  }).catch(function(){});
+
+  /* โหลดธีมสีตอนเปิดเว็บ */
+  window.fbLoadSettings('theme').then(function(data){
+    if (data && data.key && window.onThemeLoaded) window.onThemeLoaded(data.key);
+  }).catch(function(){});
+
+  /* โหลดข้อมูลผู้พัฒนาตอนเปิดเว็บ */
+  window.fbLoadSettings('developer').then(function(data){
+    if (window.onDeveloperLoaded) window.onDeveloperLoaded(data);
   }).catch(function(){});
 </script>
 </body>
