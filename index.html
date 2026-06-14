@@ -478,20 +478,27 @@
     <div class="card">
       <div class="card-head">
         <img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />
-        <h2>เข้าสู่ระบบ</h2>
-        <p>สำหรับครูและผู้ดูแลระบบ</p>
+        <h2 id="auth-title">เข้าสู่ระบบ</h2>
+        <p id="auth-sub">สำหรับครูและผู้ดูแลระบบ</p>
       </div>
       <div class="card-body">
         <div id="adm-alert" class="alert alert-error">อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>
-        <div class="field"><label for="adm-email">อีเมล</label><input id="adm-email" type="email" placeholder="admin@banlalom.ac.th" /></div>
+        <div class="field"><label for="adm-email">อีเมล</label><input id="adm-email" type="email" placeholder="teacher@example.com" /></div>
         <div class="field"><label for="adm-pass">รหัสผ่าน</label>
           <div class="pass-wrap">
             <input id="adm-pass" type="password" placeholder="••••••••" />
             <button type="button" class="pass-toggle" id="adm-pass-toggle" onclick="togglePass('adm-pass','adm-pass-toggle')" title="แสดง/ซ่อนรหัสผ่าน"><i class="ti ti-eye"></i></button>
           </div>
         </div>
-        <button class="btn btn-primary btn-block" id="adm-login-btn" onclick="adminLogin()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
-        <div class="demo-note">ใช้อีเมลและรหัสผ่านของบัญชีครูที่สร้างไว้ใน Firebase Authentication</div>
+        <div class="field" id="adm-confirm-wrap" style="display:none"><label for="adm-confirm">ยืนยันรหัสผ่าน</label>
+          <div class="pass-wrap">
+            <input id="adm-confirm" type="password" placeholder="••••••••" />
+            <button type="button" class="pass-toggle" id="adm-confirm-toggle" onclick="togglePass('adm-confirm','adm-confirm-toggle')" title="แสดง/ซ่อนรหัสผ่าน"><i class="ti ti-eye"></i></button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" id="adm-login-btn" onclick="doAuth()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
+        <a class="back-link" id="auth-switch" onclick="toggleAuthMode()" style="display:block;margin-top:14px;text-align:center"><i class="ti ti-user-plus"></i> ยังไม่มีบัญชี? สมัครบัญชีครูใหม่</a>
+        <div class="demo-note" id="auth-note">หากเป็นครูใหม่ สามารถสมัครบัญชีได้เอง จากนั้นแจ้งอีเมลกับผู้ดูแลระบบเพื่อขอสิทธิ์เข้าถึงห้องที่รับผิดชอบ</div>
         <a class="back-link" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</a>
       </div>
     </div>
@@ -533,6 +540,9 @@
         <!-- ภาพรวม -->
         <section class="pane active" id="pane-dashboard">
           <div class="page-title"><div><h2>ภาพรวมระบบ</h2><p id="dash-sub">ปีการศึกษา 2568</p></div></div>
+          <div id="no-class-banner" style="display:none;background:#FFF8E6;border:1px dashed var(--gold);color:#7a5d12;padding:14px 18px;border-radius:10px;margin-bottom:18px;line-height:1.6">
+            <i class="ti ti-info-circle"></i> บัญชีของคุณ (<b id="banner-email"></b>) ยังไม่ได้รับมอบหมายห้องเรียน กรุณาแจ้งอีเมลนี้กับผู้ดูแลระบบ (ครูแบงค์) เพื่อขอสิทธิ์เข้าถึงห้องที่รับผิดชอบ
+          </div>
           <div class="stat-grid">
             <div class="stat"><div class="ic"><i class="ti ti-users"></i></div><div class="num" id="st-students">0</div><div class="lab">นักเรียนทั้งหมด</div></div>
             <div class="stat"><div class="ic"><i class="ti ti-door"></i></div><div class="num" id="st-classes">0</div><div class="lab">ห้องเรียน</div></div>
@@ -1494,6 +1504,49 @@ function buildPp6Html(ctx){
 /* ============================================================
    แอดมิน
    ============================================================ */
+var AUTH_MODE='login';
+function doAuth(){ if(AUTH_MODE==='signup') adminSignup(); else adminLogin(); }
+function toggleAuthMode(){
+  AUTH_MODE = (AUTH_MODE==='login') ? 'signup' : 'login';
+  var isSignup=(AUTH_MODE==='signup');
+  document.getElementById('auth-title').textContent = isSignup ? 'สมัครบัญชีครูใหม่' : 'เข้าสู่ระบบ';
+  document.getElementById('auth-sub').textContent = isSignup ? 'สร้างบัญชีด้วยอีเมลของคุณ' : 'สำหรับครูและผู้ดูแลระบบ';
+  document.getElementById('adm-confirm-wrap').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('adm-login-btn').innerHTML = isSignup ? '<i class="ti ti-user-plus"></i> สมัครบัญชี' : '<i class="ti ti-login-2"></i> เข้าสู่ระบบ';
+  document.getElementById('auth-switch').innerHTML = isSignup ? '<i class="ti ti-login-2"></i> มีบัญชีแล้ว? เข้าสู่ระบบ' : '<i class="ti ti-user-plus"></i> ยังไม่มีบัญชี? สมัครบัญชีครูใหม่';
+  document.getElementById('auth-note').textContent = isSignup ? 'สมัครแล้วเข้าใช้งานได้ทันที แต่จะเห็นข้อมูลเฉพาะห้องที่ผู้ดูแลระบบมอบหมายให้ — แจ้งอีเมลนี้กับผู้ดูแลเพื่อขอสิทธิ์' : 'หากเป็นครูใหม่ สามารถสมัครบัญชีได้เอง จากนั้นแจ้งอีเมลกับผู้ดูแลระบบเพื่อขอสิทธิ์เข้าถึงห้องที่รับผิดชอบ';
+  document.getElementById('adm-alert').classList.remove('show');
+}
+function adminSignup(){
+  var email=document.getElementById('adm-email').value.trim();
+  var pass=document.getElementById('adm-pass').value;
+  var confirm=document.getElementById('adm-confirm').value;
+  var alert=document.getElementById('adm-alert');
+  var btn=document.getElementById('adm-login-btn');
+  if (!email || !pass){ alert.textContent='กรุณากรอกอีเมลและรหัสผ่าน'; alert.classList.add('show'); return; }
+  if (pass.length<6){ alert.textContent='รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; alert.classList.add('show'); return; }
+  if (pass!==confirm){ alert.textContent='รหัสผ่านทั้งสองช่องไม่ตรงกัน'; alert.classList.add('show'); return; }
+  if (!window.fbSignUp){ alert.textContent='ระบบกำลังโหลด กรุณารอสักครู่'; alert.classList.add('show'); return; }
+  alert.classList.remove('show');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader-2 spin"></i> กำลังสมัคร...';
+  function reset(){ btn.disabled=false; btn.innerHTML='<i class="ti ti-user-plus"></i> สมัครบัญชี'; }
+  window.fbSignUp(email, pass).then(function(){
+    CURRENT_EMAIL=(email||'').toLowerCase();
+    IS_ADMIN=(CURRENT_EMAIL===SUPER_ADMIN.toLowerCase());
+    applyClassScope();
+    btn.innerHTML='<i class="ti ti-check"></i> สมัครสำเร็จ';
+    setTimeout(function(){ AUTH_MODE='login'; applyRole(); initAdmin(); loadAllData(); go('admin'); reset(); }, 500);
+  }).catch(function(err){
+    reset();
+    var code=err&&err.code;
+    if (code==='auth/email-already-in-use') alert.textContent='อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบแทน';
+    else if (code==='auth/invalid-email') alert.textContent='รูปแบบอีเมลไม่ถูกต้อง';
+    else if (code==='auth/weak-password') alert.textContent='รหัสผ่านอ่อนเกินไป (อย่างน้อย 6 ตัวอักษร)';
+    else alert.textContent='สมัครไม่สำเร็จ: '+(err&&err.message?err.message:'ไม่ทราบสาเหตุ');
+    alert.classList.add('show');
+  });
+}
 function adminLogin() {
   var email=document.getElementById('adm-email').value.trim();
   var pass=document.getElementById('adm-pass').value;
@@ -1578,6 +1631,12 @@ function animateCount(el, target){
   requestAnimationFrame(step);
 }
 function renderDashboard() {
+  var banner=document.getElementById('no-class-banner');
+  if (banner){
+    var show=(!IS_ADMIN && !CLASSES.length);
+    banner.style.display=show?'block':'none';
+    if (show) document.getElementById('banner-email').textContent=CURRENT_EMAIL||'';
+  }
   var total=0;
   for (var i=0;i<CLASSES.length;i++) total+=rosterOf(CLASSES[i].id).length;
   animateCount(document.getElementById('st-students'), total);
@@ -2455,7 +2514,7 @@ document.addEventListener('click', function(e){
 <!-- ============ เชื่อม Firebase ============ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, updatePassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
   import { getFirestore, collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2475,6 +2534,7 @@ document.addEventListener('click', function(e){
   window.fbSignIn  = function(email, pass){ return signInWithEmailAndPassword(auth, email, pass); };
   window.fbSignOut = function(){ return signOut(auth); };
   window.fbCurrentEmail = function(){ return auth.currentUser ? auth.currentUser.email : null; };
+  window.fbSignUp = function(email, pass){ return createUserWithEmailAndPassword(auth, email, pass); };
   window.fbChangePassword = function(newPass){
     if (!auth.currentUser) return Promise.reject(new Error('ยังไม่ได้เข้าสู่ระบบ'));
     return updatePassword(auth.currentUser, newPass);
