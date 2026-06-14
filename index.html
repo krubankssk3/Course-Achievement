@@ -397,6 +397,7 @@
       <div class="t">ระบบบันทึก ปพ.5 / ปพ.6<small>โรงเรียนบ้านละลม</small></div>
       <div class="spacer"></div>
       <select class="year-select" id="year-select" onchange="onYearChange()"></select>
+      <button class="year-select" style="padding:9px 11px" title="จัดการปีการศึกษา" onclick="openYearModal()"><i class="ti ti-calendar-cog"></i></button>
       <span class="who"><i class="ti ti-user-circle"></i> ครูแบงค์</span>
       <div class="theme-quick">
         <button class="btn btn-light" onclick="toggleThemeMenu(event)" aria-haspopup="true"><i class="ti ti-palette"></i> โทนสี</button>
@@ -597,6 +598,26 @@
       </div>
     </div>
 
+    <!-- Modal: จัดการปีการศึกษา -->
+    <div class="modal-overlay" id="year-modal">
+      <div class="modal">
+        <div class="modal-head"><h3>จัดการปีการศึกษา</h3><button class="x" onclick="closeYearModal()">&times;</button></div>
+        <div class="modal-body">
+          <div id="year-modal-alert" class="alert alert-error"></div>
+          <div class="field"><label>เพิ่มปีการศึกษาใหม่</label>
+            <div style="display:flex;gap:10px"><input id="yf-new" type="number" min="2500" max="2700" placeholder="เช่น 2569" /><button class="btn btn-primary" style="white-space:nowrap" onclick="addYear()"><i class="ti ti-plus"></i> เพิ่ม</button></div>
+            <div class="hint">กรอกเป็น พ.ศ. เช่น 2569</div>
+          </div>
+          <div class="field"><label>ปีการศึกษาที่มีอยู่</label><div id="year-list"></div></div>
+          <div class="hint" style="margin-top:6px">การลบปีจะนำปีออกจากรายการเท่านั้น ข้อมูล ปพ.5/ปพ.6 ของปีนั้นยังคงอยู่ในฐานข้อมูล และจะกลับมาใช้ได้หากเพิ่มปีกลับ</div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeYearModal()">ปิด</button>
+          <button class="btn btn-primary" onclick="saveYears()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
   </div>
 </section>
@@ -607,9 +628,21 @@
    โครงสร้าง: ปีการศึกษา -> ห้อง -> (มัธยม: ภาคเรียน 1/2) / (ประถม: ทั้งปี)
    ============================================================ */
 var SCHOOL = { name: "โรงเรียนบ้านละลม", area: "สพป.ศรีสะเกษ เขต 3" };
-var YEARS = ["2568", "2567", "2566"];     /* จัดเก็บย้อนหลังทุกปี */
-var DATA_YEAR = "2568";                    /* prototype มีข้อมูลจริงเฉพาะปีนี้ */
+var YEARS = ["2568", "2567", "2566"];     /* ค่าเริ่มต้น ถูกแทนด้วยข้อมูลจาก Firestore เมื่อโหลดเสร็จ */
 var CURRENT_YEAR = "2568";
+/* Firebase เรียกเมื่อโหลดรายการปีการศึกษาจาก Firestore เสร็จ */
+window.onYearsLoaded = function(list) {
+  if (!list || !list.length) return;
+  YEARS = list.slice();
+  if (YEARS.indexOf(CURRENT_YEAR)<0) CURRENT_YEAR=YEARS[0];
+  refreshYearSelectors();
+};
+function refreshYearSelectors() {
+  var ys=document.getElementById('year-select');
+  if (ys) ys.innerHTML=yearOptions(CURRENT_YEAR);
+  var sy=document.getElementById('stu-year');
+  if (sy) sy.innerHTML=yearOptions(YEARS[0]);
+}
 
 /* ห้องเรียน — เริ่มจากค่าสำรอง แล้วถูกแทนที่ด้วยข้อมูลจริงจาก Firestore เมื่อโหลดเสร็จ */
 var CLASSES = [
@@ -1473,6 +1506,57 @@ function loadSettings() {
 /* Firebase เรียกเมื่อโหลดลายเซ็นตอนเปิดเว็บ (ใช้ฝั่งนักเรียน) */
 window.onSettingsLoaded = function(data) { SIGNATURES=data||{}; };
 
+/* ---- จัดการปีการศึกษา ---- */
+var YEAR_DRAFT=[];
+function openYearModal() {
+  YEAR_DRAFT=YEARS.slice();
+  document.getElementById('year-modal-alert').classList.remove('show');
+  document.getElementById('yf-new').value='';
+  renderYearList();
+  document.getElementById('year-modal').classList.add('open');
+}
+function closeYearModal() { document.getElementById('year-modal').classList.remove('open'); }
+function renderYearList() {
+  if (!YEAR_DRAFT.length){ document.getElementById('year-list').innerHTML='<div class="hint">ยังไม่มีปีการศึกษา</div>'; return; }
+  var h='';
+  for (var i=0;i<YEAR_DRAFT.length;i++){
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">'
+      +'<span>ปีการศึกษา '+YEAR_DRAFT[i]+'</span>'
+      +'<button class="btn btn-ghost" style="padding:5px 9px;font-size:13px" onclick="removeYear(\''+YEAR_DRAFT[i]+'\')"><i class="ti ti-trash"></i></button></div>';
+  }
+  document.getElementById('year-list').innerHTML=h;
+}
+function addYear() {
+  var v=document.getElementById('yf-new').value.trim();
+  var alert=document.getElementById('year-modal-alert');
+  if (!v){ alert.textContent='กรุณากรอกปีการศึกษา'; alert.classList.add('show'); return; }
+  if (YEAR_DRAFT.indexOf(v)>=0){ alert.textContent='มีปีการศึกษานี้อยู่แล้ว'; alert.classList.add('show'); return; }
+  alert.classList.remove('show');
+  YEAR_DRAFT.push(v);
+  YEAR_DRAFT.sort(function(a,b){ return parseInt(b,10)-parseInt(a,10); });
+  document.getElementById('yf-new').value='';
+  renderYearList();
+}
+function removeYear(y) {
+  if (YEAR_DRAFT.length<=1){ var a=document.getElementById('year-modal-alert'); a.textContent='ต้องมีอย่างน้อย 1 ปีการศึกษา'; a.classList.add('show'); return; }
+  if (!confirm('นำปีการศึกษา '+y+' ออกจากรายการ? (ข้อมูลในฐานข้อมูลยังอยู่)')) return;
+  var idx=YEAR_DRAFT.indexOf(y);
+  if (idx>=0) YEAR_DRAFT.splice(idx,1);
+  renderYearList();
+}
+function saveYears() {
+  if (!window.fbSaveSettings){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  if (!YEAR_DRAFT.length){ alert('ต้องมีอย่างน้อย 1 ปีการศึกษา'); return; }
+  window.fbSaveSettings('years', { list:YEAR_DRAFT }).then(function(){
+    YEARS=YEAR_DRAFT.slice();
+    if (YEARS.indexOf(CURRENT_YEAR)<0) CURRENT_YEAR=YEARS[0];
+    refreshYearSelectors();
+    closeYearModal();
+    loadAllData();
+    alert('บันทึกปีการศึกษาเรียบร้อยแล้ว');
+  }).catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
+
 function renderPp6() {
   var cid=document.getElementById('pp6-class').value;
   var c=classById(cid);
@@ -1645,6 +1729,11 @@ document.addEventListener('click', function(e){
   /* โหลดลายเซ็นตอนเปิดเว็บ เพื่อให้แสดงบนเอกสารฝั่งนักเรียนได้ */
   window.fbLoadSettings('signatures').then(function(data){
     if (data && window.onSettingsLoaded) window.onSettingsLoaded(data);
+  }).catch(function(){});
+
+  /* โหลดรายการปีการศึกษาตอนเปิดเว็บ */
+  window.fbLoadSettings('years').then(function(data){
+    if (data && data.list && window.onYearsLoaded) window.onYearsLoaded(data.list);
   }).catch(function(){});
 </script>
 </body>
