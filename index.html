@@ -220,18 +220,21 @@
   .pp6-summary td.c { text-align:center; }
   .pp6-signs { flex:1; display:flex; flex-direction:column; gap:10px; padding-top:4px; }
   .pp6-sign { text-align:center; font-size:11.5px; line-height:1.5; }
-  .pp6-sign .line { height:30px; display:flex; align-items:flex-end; justify-content:center; }
-  .pp6-sign .line img { max-height:30px; max-width:140px; }
+  .pp6-sign .line { min-height:34px; display:flex; align-items:flex-end; justify-content:center; overflow:visible; }
+  .pp6-sign .line img { display:block; }
 
   .sig-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
   .sig-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; }
   .sig-card h4 { font-family:'Kanit',sans-serif; margin:0 0 12px; color:var(--ink); font-size:15px; }
   .sig-card input[type=text] { width:100%; padding:9px 11px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-family:'Sarabun',sans-serif; font-size:14px; }
   .sig-card input[type=text]:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 3px var(--primary-soft); }
-  .sig-preview { height:80px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:#FAFBFC; overflow:hidden; }
-  .sig-preview img { max-height:74px; max-width:100%; }
+  .sig-preview { min-height:90px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:#FAFBFC; overflow:hidden; }
+  .sig-preview img { display:block; }
   .sig-preview span { color:var(--muted); font-size:13px; }
   .sig-card input[type=file] { width:100%; font-size:13px; }
+  .sig-controls { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .sig-controls label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  .sig-controls input[type=range] { width:100%; }
 
   footer.app-foot { text-align: center; padding: 18px; font-size: 13px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
   .pub-foot { background: var(--ink); color: rgba(255,255,255,.6); text-align: center; padding: 20px; font-size: 13px; }
@@ -964,7 +967,7 @@ function pp6ActivityRows(isSec){
 }
 function signBlock(role){
   var s=(SIGNATURES&&SIGNATURES[role])||{};
-  var img = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" />' : '';
+  var img = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" style="'+sigImgStyle(s)+'" />' : '';
   var name = s.name ? '( '+s.name+' )' : '( ................................ )';
   return '<div class="pp6-sign"><div class="line">'+img+'</div>'
     +'<div>ลงชื่อ ..........................................</div>'
@@ -1445,25 +1448,45 @@ var SIG_ROLES=[
   {key:'director', label:'ผู้อำนวยการ', defPos:'ผู้อำนวยการโรงเรียน'}
 ];
 var SIGNATURES={};
+function sigImgStyle(s){
+  s=s||{};
+  return 'width:'+(s.w||120)+'px; transform:translate('+(s.dx||0)+'px,'+(s.dy||0)+'px);';
+}
 function renderSignatures() {
   var html="";
   for (var i=0;i<SIG_ROLES.length;i++){
     var r=SIG_ROLES[i], s=SIGNATURES[r.key]||{};
-    var prev = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" />' : '<span>ยังไม่มีรูปลายเซ็น</span>';
+    var prev = s.img ? '<img id="sig-'+r.key+'-img" src="'+s.img+'" alt="ลายเซ็น" style="'+sigImgStyle(s)+'" />' : '<span>ยังไม่มีรูปลายเซ็น</span>';
     html+='<div class="sig-card"><h4>'+r.label+'</h4>'
       +'<input type="text" id="sig-'+r.key+'-name" placeholder="ชื่อ-สกุล" value="'+(s.name||'')+'" />'
       +'<input type="text" id="sig-'+r.key+'-pos" placeholder="ตำแหน่ง" value="'+(s.position||r.defPos)+'" />'
       +'<div class="sig-preview" id="sig-'+r.key+'-preview">'+prev+'</div>'
-      +'<input type="file" accept="image/*" onchange="onSigUpload(\''+r.key+'\', this)" /></div>';
+      +'<input type="file" accept="image/*" onchange="onSigUpload(\''+r.key+'\', this)" />'
+      +'<div class="sig-controls">'
+      +'<label>ขนาด <input type="range" id="sig-'+r.key+'-w" min="40" max="260" value="'+(s.w||120)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
+      +'<label>เลื่อนซ้าย-ขวา <input type="range" id="sig-'+r.key+'-dx" min="-70" max="70" value="'+(s.dx||0)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
+      +'<label>เลื่อนขึ้น-ลง <input type="range" id="sig-'+r.key+'-dy" min="-40" max="40" value="'+(s.dy||0)+'" oninput="onSigAdjust(\''+r.key+'\')" /></label>'
+      +'</div></div>';
   }
   document.getElementById('sig-grid').innerHTML=html;
+}
+function onSigAdjust(key){
+  if (!SIGNATURES[key]) SIGNATURES[key]={};
+  SIGNATURES[key].w=parseInt(document.getElementById('sig-'+key+'-w').value,10);
+  SIGNATURES[key].dx=parseInt(document.getElementById('sig-'+key+'-dx').value,10);
+  SIGNATURES[key].dy=parseInt(document.getElementById('sig-'+key+'-dy').value,10);
+  var im=document.getElementById('sig-'+key+'-img');
+  if (im) im.style.cssText=sigImgStyle(SIGNATURES[key]);
 }
 function onSigUpload(key, input) {
   if (!input.files || !input.files[0]) return;
   resizeImage(input.files[0], 400, function(dataUrl){
     if (!SIGNATURES[key]) SIGNATURES[key]={};
     SIGNATURES[key].img=dataUrl;
-    document.getElementById('sig-'+key+'-preview').innerHTML='<img src="'+dataUrl+'" alt="ลายเซ็น" />';
+    if (SIGNATURES[key].w==null) SIGNATURES[key].w=120;
+    if (SIGNATURES[key].dx==null) SIGNATURES[key].dx=0;
+    if (SIGNATURES[key].dy==null) SIGNATURES[key].dy=0;
+    document.getElementById('sig-'+key+'-preview').innerHTML='<img id="sig-'+key+'-img" src="'+dataUrl+'" alt="ลายเซ็น" style="'+sigImgStyle(SIGNATURES[key])+'" />';
   });
 }
 function resizeImage(file, maxW, cb) {
@@ -1491,7 +1514,8 @@ function saveSignatures() {
     data[key]={
       name: (document.getElementById('sig-'+key+'-name').value||'').trim(),
       position: (document.getElementById('sig-'+key+'-pos').value||'').trim(),
-      img: old.img||''
+      img: old.img||'',
+      w: old.w||120, dx: old.dx||0, dy: old.dy||0
     };
   }
   window.fbSaveSettings('signatures', data)
