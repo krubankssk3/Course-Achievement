@@ -83,6 +83,9 @@
   .pass-wrap input { width: 100%; padding-right: 44px; }
   .pass-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); padding: 6px 8px; border-radius: 8px; display: flex; align-items: center; font-size: 18px; }
   .pass-toggle:hover { color: var(--primary); background: var(--primary-soft); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin .7s linear infinite; }
+  .btn:disabled { opacity: .8; cursor: default; }
   .demo-note b { color: #5e4709; }
 
   /* เอกสาร ปพ.6 */
@@ -487,7 +490,7 @@
             <button type="button" class="pass-toggle" id="adm-pass-toggle" onclick="togglePass('adm-pass','adm-pass-toggle')" title="แสดง/ซ่อนรหัสผ่าน"><i class="ti ti-eye"></i></button>
           </div>
         </div>
-        <button class="btn btn-primary btn-block" onclick="adminLogin()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
+        <button class="btn btn-primary btn-block" id="adm-login-btn" onclick="adminLogin()"><i class="ti ti-login-2"></i> เข้าสู่ระบบ</button>
         <div class="demo-note">ใช้อีเมลและรหัสผ่านของบัญชีครูที่สร้างไว้ใน Firebase Authentication</div>
         <a class="back-link" onclick="go('public')"><i class="ti ti-arrow-left"></i> กลับหน้าหลัก</a>
       </div>
@@ -1480,10 +1483,19 @@ function adminLogin() {
   var email=document.getElementById('adm-email').value.trim();
   var pass=document.getElementById('adm-pass').value;
   var alert=document.getElementById('adm-alert');
+  var btn=document.getElementById('adm-login-btn');
   if (!window.fbSignIn){ alert.textContent='ระบบกำลังโหลด กรุณารอสักครู่แล้วลองใหม่'; alert.classList.add('show'); return; }
+  alert.classList.remove('show');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader-2 spin"></i> กำลังเข้าสู่ระบบ...';
+  function reset(){ btn.disabled=false; btn.innerHTML='<i class="ti ti-login-2"></i> เข้าสู่ระบบ'; }
   window.fbSignIn(email, pass).then(function(){
-    alert.classList.remove('show'); initAdmin(); loadAllData(); go('admin');
+    btn.innerHTML='<i class="ti ti-check"></i> เข้าสู่ระบบสำเร็จ';
+    setTimeout(function(){
+      alert.classList.remove('show'); initAdmin(); loadAllData(); go('admin'); reset();
+    }, 450);
   }).catch(function(err){
+    reset();
     alert.textContent='อีเมลหรือรหัสผ่านไม่ถูกต้อง'; alert.classList.add('show');
   });
 }
