@@ -510,6 +510,7 @@
         <button class="btn btn-light" onclick="toggleThemeMenu(event)" aria-haspopup="true"><i class="ti ti-palette"></i> โทนสี</button>
         <div class="theme-menu" id="theme-menu"></div>
       </div>
+      <button class="btn btn-light" onclick="openPwModal()"><i class="ti ti-key"></i> เปลี่ยนรหัสผ่าน</button>
       <button class="btn btn-light" onclick="logout()"><i class="ti ti-logout"></i> ออกจากระบบ</button>
     </div>
     <div class="admin-body">
@@ -756,6 +757,29 @@
       </div>
     </div>
 
+    <!-- Modal: เปลี่ยนรหัสผ่าน -->
+    <div class="modal-overlay" id="pw-modal">
+      <div class="modal">
+        <div class="modal-head"><h3>เปลี่ยนรหัสผ่าน</h3><button class="x" onclick="closePwModal()">&times;</button></div>
+        <div class="modal-body">
+          <div id="pw-modal-alert" class="alert alert-error"></div>
+          <div class="field"><label>รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)</label>
+            <div class="pass-wrap"><input id="pw-new" type="password" placeholder="••••••••" />
+              <button type="button" class="pass-toggle" id="pw-new-toggle" onclick="togglePass('pw-new','pw-new-toggle')"><i class="ti ti-eye"></i></button></div>
+          </div>
+          <div class="field"><label>ยืนยันรหัสผ่านใหม่</label>
+            <div class="pass-wrap"><input id="pw-confirm" type="password" placeholder="••••••••" />
+              <button type="button" class="pass-toggle" id="pw-confirm-toggle" onclick="togglePass('pw-confirm','pw-confirm-toggle')"><i class="ti ti-eye"></i></button></div>
+          </div>
+          <div class="hint">หากระบบแจ้งให้เข้าสู่ระบบใหม่ ให้ออกจากระบบแล้วล็อกอินอีกครั้ง จากนั้นจึงเปลี่ยนรหัสผ่าน (เพื่อความปลอดภัยของบัญชี)</div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closePwModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="changePassword()"><i class="ti ti-device-floppy"></i> เปลี่ยนรหัสผ่าน</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="app-foot">พัฒนาโดย นายชิติพัทธ์ นิลวรรณ ตำแหน่ง ครู โรงเรียนบ้านละลม สพป.ศรีสะเกษ เขต 3</footer>
   </div>
 </section>
@@ -958,6 +982,33 @@ function togglePass(inputId, btnId){
   if(!inp||!btn) return;
   if (inp.type==='password'){ inp.type='text'; btn.innerHTML='<i class="ti ti-eye-off"></i>'; }
   else { inp.type='password'; btn.innerHTML='<i class="ti ti-eye"></i>'; }
+}
+function openPwModal(){
+  document.getElementById('pw-modal-alert').classList.remove('show');
+  document.getElementById('pw-new').value='';
+  document.getElementById('pw-confirm').value='';
+  document.getElementById('pw-modal').classList.add('open');
+}
+function closePwModal(){ document.getElementById('pw-modal').classList.remove('open'); }
+function changePassword(){
+  var a=document.getElementById('pw-modal-alert');
+  var np=document.getElementById('pw-new').value;
+  var cf=document.getElementById('pw-confirm').value;
+  if (np.length<6){ a.textContent='รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'; a.classList.add('show'); return; }
+  if (np!==cf){ a.textContent='รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน'; a.classList.add('show'); return; }
+  if (!window.fbChangePassword){ a.textContent='ระบบยังโหลดไม่เสร็จ'; a.classList.add('show'); return; }
+  a.classList.remove('show');
+  window.fbChangePassword(np).then(function(){
+    closePwModal();
+    alert('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว ครั้งต่อไปให้เข้าสู่ระบบด้วยรหัสผ่านใหม่');
+  }).catch(function(e){
+    if (e && e.code==='auth/requires-recent-login'){
+      a.textContent='เพื่อความปลอดภัย กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่ ก่อนเปลี่ยนรหัสผ่าน';
+    } else {
+      a.textContent='เปลี่ยนไม่สำเร็จ: '+(e&&e.message?e.message:'ไม่ทราบสาเหตุ');
+    }
+    a.classList.add('show');
+  });
 }
 
 /* ===== ข้อมูลผู้พัฒนา ===== */
@@ -1641,9 +1692,18 @@ function saveStudent() {
   var alert=document.getElementById('student-modal-alert');
   if (!data.name || !data.sid || !data.cid || !data.dob) { alert.textContent='กรุณากรอกข้อมูลให้ครบทุกช่อง'; alert.classList.add('show'); return; }
   if (data.cid.length !== 13) { alert.textContent='เลขบัตรประชาชนต้องมี 13 หลัก'; alert.classList.add('show'); return; }
-  if (!window.fbAddStudent) { alert.textContent='ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'; alert.classList.add('show'); return; }
-  var btn=document.getElementById('stf-save-btn'); btn.disabled=true;
+  /* ตรวจเลขที่/เลขประจำตัวซ้ำในห้องเดียวกัน (ปีและห้องเดียวกัน) ยกเว้นตัวเองตอนแก้ไข */
+  var btn=document.getElementById('stf-save-btn');
   var editId=btn.getAttribute('data-edit');
+  for (var d=0;d<STUDENTS_DATA.length;d++){
+    var o=STUDENTS_DATA[d];
+    if (o.id===editId) continue;
+    if (o.year!==CURRENT_YEAR || o.classId!==data.classId) continue;
+    if (data.no && o.no===data.no){ alert.textContent='เลขที่ '+data.no+' มีอยู่แล้วในห้องนี้ (นักเรียน: '+o.name+')'; alert.classList.add('show'); return; }
+    if (o.sid===data.sid){ alert.textContent='เลขประจำตัว '+data.sid+' ซ้ำกับนักเรียน '+o.name; alert.classList.add('show'); return; }
+  }
+  if (!window.fbAddStudent) { alert.textContent='ระบบยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง'; alert.classList.add('show'); return; }
+  btn.disabled=true;
   var op = editId ? window.fbUpdateStudent(editId, data) : window.fbAddStudent(data);
   op.then(function(){ btn.disabled=false; closeStudentModal(); reloadStudents(); })
     .catch(function(e){ btn.disabled=false; alert.textContent='บันทึกไม่สำเร็จ: '+e.message; alert.classList.add('show'); });
@@ -1705,21 +1765,24 @@ function renderPp5() {
 
   if (c.system==='secondary'){
     var term=document.getElementById('pp5-term').value;
+    var collect=(sub.ratioCollect!=null)?sub.ratioCollect:60;
+    var exam=(sub.ratioExam!=null)?sub.ratioExam:40;
+    var mid=Math.round(exam/2), fin=exam-mid;
     document.getElementById('pp5-title').textContent='คะแนน — '+sub.name+' · '+c.name+' · ภาคเรียนที่ '+term;
-    document.getElementById('pp5-scale').textContent='เก็บ 60 + กลางภาค 20 + ปลายภาค 20';
+    document.getElementById('pp5-scale').textContent='เก็บ '+collect+' + กลางภาค '+mid+' + ปลายภาค '+fin+' = 100';
     var r1="";
     for (var j=0;j<list.length;j++){
       var st=list[j]; var a=(st.terms&&st.terms[term]&&st.terms[term].s&&st.terms[term].s[code])?st.terms[term].s[code]:[0,0,0];
       var tot=a[0]+a[1]+a[2];
       r1+='<tr><td class="num">'+st.no+'</td><td>'+st.name+'</td>'
-        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="0" value="'+a[0]+'" /></td>'
-        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="1" value="'+a[1]+'" /></td>'
-        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="2" value="'+a[2]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="0" data-max="'+collect+'" value="'+a[0]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="1" data-max="'+mid+'" value="'+a[1]+'" /></td>'
+        +'<td class="num"><input class="score" data-sid="'+st.id+'" data-idx="2" data-max="'+fin+'" value="'+a[2]+'" /></td>'
         +'<td class="num"><b>'+tot+'</b></td>'
         +'<td class="num"><span class="pill pill-grade">'+fmt(gradeOf(tot),1)+'</span></td></tr>';
     }
     document.getElementById('pp5-table').innerHTML=
-      '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">เก็บ (60)</th><th class="num">กลางภาค (20)</th><th class="num">ปลายภาค (20)</th><th class="num">รวม</th><th class="num">เกรด</th></tr></thead><tbody>'+r1+'</tbody></table>';
+      '<table class="data"><thead><tr><th class="num">เลขที่</th><th>ชื่อ - สกุล</th><th class="num">เก็บ ('+collect+')</th><th class="num">กลางภาค ('+mid+')</th><th class="num">ปลายภาค ('+fin+')</th><th class="num">รวม</th><th class="num">เกรด</th></tr></thead><tbody>'+r1+'</tbody></table>';
   } else {
     document.getElementById('pp5-title').textContent='คะแนน — '+sub.name+' · '+c.name+' · ทั้งปีการศึกษา';
     document.getElementById('pp5-scale').textContent='คะแนนรวมทั้งปี เต็ม 100';
@@ -1744,14 +1807,24 @@ function savePp5() {
 
   var scores={};
   var inputs=document.querySelectorAll('#pp5-table input.score');
+  var over=[];
   for (var i=0;i<inputs.length;i++){
     var sid=inputs[i].getAttribute('data-sid');
     var val=parseInt(inputs[i].value,10); if (isNaN(val)) val=0;
+    if (val<0) val=0;
+    var mx=inputs[i].getAttribute('data-max');
+    if (mx!=null && val>parseInt(mx,10)) over.push(val+' (เต็ม '+mx+')');
     if (c.system==='secondary'){
       var idx=parseInt(inputs[i].getAttribute('data-idx'),10);
       if(!scores[sid]) scores[sid]=[0,0,0];
       scores[sid][idx]=val;
-    } else { scores[sid]=val; }
+    } else {
+      if (val>100) over.push(val+' (เต็ม 100)');
+      scores[sid]=val;
+    }
+  }
+  if (over.length){
+    if(!confirm('มีคะแนนที่เกินเต็มของช่อง '+over.length+' รายการ เช่น '+over[0]+'\nต้องการบันทึกต่อหรือไม่?')) return;
   }
   var recordId=CURRENT_YEAR+'_'+cid+'_'+code+'_'+term;
   window.fbSaveRecord(recordId, { year:CURRENT_YEAR, classId:cid, subjectCode:code, term:term, scores:scores })
@@ -2325,7 +2398,7 @@ document.addEventListener('click', function(e){
 <!-- ============ เชื่อม Firebase ============ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
   import { getFirestore, collection, getDocs, getDoc, doc, setDoc, deleteDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2344,6 +2417,10 @@ document.addEventListener('click', function(e){
   /* เปิดให้โค้ดส่วนแอป (ปุ่มล็อกอิน/ออกจากระบบ) เรียกใช้ได้ */
   window.fbSignIn  = function(email, pass){ return signInWithEmailAndPassword(auth, email, pass); };
   window.fbSignOut = function(){ return signOut(auth); };
+  window.fbChangePassword = function(newPass){
+    if (!auth.currentUser) return Promise.reject(new Error('ยังไม่ได้เข้าสู่ระบบ'));
+    return updatePassword(auth.currentUser, newPass);
+  };
 
   /* โหลดห้องเรียนจาก Firestore ทันทีที่เปิดเว็บ */
   async function loadClasses(){
