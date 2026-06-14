@@ -225,6 +225,25 @@
   .pp6-summary th { background:#eee; font-family:'Kanit',sans-serif; font-weight:500; text-align:left; }
   .pp6-summary td.c { text-align:center; }
 
+  /* เอกสาร ปพ.5 สรุปทั้งห้อง */
+  .pp5 { font-family:'Sarabun',sans-serif; color:#1a1a1a; font-size:12px; line-height:1.3; padding:20px 24px; background:#fff; }
+  .pp5-head { text-align:center; position:relative; min-height:60px; }
+  .pp5-head img { position:absolute; left:2px; top:0; width:56px; height:56px; object-fit:contain; }
+  .pp5-title { font-family:'Kanit',sans-serif; font-weight:600; font-size:15px; }
+  .pp5-meta { font-size:12.5px; margin-top:2px; }
+  .pp5-row { display:flex; gap:14px; margin-top:10px; align-items:flex-start; }
+  .pp5 table { border-collapse:collapse; width:100%; }
+  .pp5 table th, .pp5 table td { border:1px solid #888; padding:2px 4px; font-size:10.5px; text-align:center; }
+  .pp5 table th { background:#eee; font-family:'Kanit',sans-serif; font-weight:500; }
+  .pp5 .subj-col { text-align:left; white-space:nowrap; }
+  .pp5-grades { flex:2.2; }
+  .pp5-side { flex:1; display:flex; flex-direction:column; gap:10px; }
+  .pp5-approve table td { text-align:center; }
+  .pp5-approve table td.k { text-align:left; }
+  .pp5-signs { display:flex; flex-wrap:wrap; gap:18px 10px; margin-top:22px; justify-content:space-between; }
+  .pp5-sign { text-align:center; font-size:11.5px; line-height:1.6; width:46%; }
+  .pp5-approve-line { text-align:center; margin-top:14px; font-size:12px; }
+
   .sig-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
   .sig-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; }
   .sig-card h4 { font-family:'Kanit',sans-serif; margin:0 0 12px; color:var(--ink); font-size:15px; }
@@ -277,6 +296,7 @@
     .doc-screen { margin:0 !important; padding:0 !important; }
     .paper { box-shadow:none !important; border:none !important; max-width:100% !important; margin:0 !important; padding:0 !important; }
     .pp6 { padding:0 !important; font-size:11.5px; min-height:0 !important; }
+    .pp5 { padding:0 !important; font-size:11px; }
     .pp6-grades th, .pp6-grades td { padding:2px 5px; font-size:11px; }
     /* พิมพ์ทั้งห้อง: แสดงเฉพาะกล่องรวม ซ่อนส่วนอื่น */
     body.printing-all > *:not(#print-all) { display:none !important; }
@@ -482,6 +502,7 @@
             <div class="field"><label>รายวิชา</label><select id="pp5-subject" onchange="renderPp5()"></select></div>
             <div class="field" id="pp5-term-wrap"><label>ภาคเรียน</label><select id="pp5-term" onchange="renderPp5()"><option value="1">ภาคเรียนที่ 1</option><option value="2">ภาคเรียนที่ 2</option></select></div>
             <button class="btn btn-primary" onclick="savePp5()"><i class="ti ti-device-floppy"></i> บันทึก</button>
+            <button class="btn btn-ghost" onclick="openPp5Summary()"><i class="ti ti-report"></i> ออกเอกสาร ปพ.5 (สรุปทั้งห้อง)</button>
           </div>
           <div class="panel">
             <div class="panel-head"><h3 id="pp5-title">คะแนน</h3><span class="pill pill-ok" id="pp5-scale">เต็ม 100 คะแนน</span></div>
@@ -583,6 +604,7 @@
           <div class="field"><label>ชื่อ - สกุล</label><input id="stf-name" type="text" placeholder="เช่น เด็กชายธนกร ใจดี" /></div>
           <div class="field"><label>เลขประจำตัวนักเรียน</label><input id="stf-sid" type="text" placeholder="เช่น 12345" /></div>
           <div class="field"><label>เลขบัตรประชาชน (13 หลัก)</label><input id="stf-cid" type="text" inputmode="numeric" maxlength="13" placeholder="ใช้ยืนยันตัวตนตอนดูเกรด" /></div>
+          <div class="field"><label>เพศ</label><select id="stf-gender"><option value="ชาย">ชาย</option><option value="หญิง">หญิง</option></select></div>
           <div class="field"><label>วันเกิด</label><input id="stf-dob" type="date" /></div>
         </div>
         <div class="modal-foot">
@@ -1256,6 +1278,7 @@ function openStudentModal(mode, id) {
     document.getElementById('stf-name').value=s.name;
     document.getElementById('stf-sid').value=s.sid;
     document.getElementById('stf-cid').value=s.cid;
+    document.getElementById('stf-gender').value=s.gender||'ชาย';
     document.getElementById('stf-dob').value=s.dob;
     document.getElementById('stf-save-btn').setAttribute('data-edit', id);
   } else {
@@ -1264,6 +1287,7 @@ function openStudentModal(mode, id) {
     document.getElementById('stf-name').value='';
     document.getElementById('stf-sid').value='';
     document.getElementById('stf-cid').value='';
+    document.getElementById('stf-gender').value='ชาย';
     document.getElementById('stf-dob').value='';
     document.getElementById('stf-save-btn').removeAttribute('data-edit');
   }
@@ -1277,6 +1301,7 @@ function saveStudent() {
     name: document.getElementById('stf-name').value.trim(),
     sid: document.getElementById('stf-sid').value.trim(),
     cid: document.getElementById('stf-cid').value.trim(),
+    gender: document.getElementById('stf-gender').value,
     dob: document.getElementById('stf-dob').value,
     year: CURRENT_YEAR
   };
@@ -1808,6 +1833,100 @@ function exportExcel() {
     XLSX.utils.book_append_sheet(wb, ws2, 'ผลการเรียนทั้งปี');
   }
   XLSX.writeFile(wb, 'ผลการเรียน_'+c.name+'_ปี'+CURRENT_YEAR+'.xlsx');
+}
+
+/* ===== เอกสาร ปพ.5 สรุปทั้งห้อง (สมุดบันทึกการพัฒนาคุณภาพผู้เรียน) ===== */
+var GRADE_SCALE=[4,3.5,3,2.5,2,1.5,1,0];
+function gradeOfCtx(stu, term, code, system){
+  if (system==='secondary') return gradeOf(secTermTotal(stu,term,code));
+  var yy=stu.y||{}; var sc=yy[code]; return gradeOf(sc!=null?sc:0);
+}
+function openPp5Summary(){
+  var cid=document.getElementById('pp5-class').value;
+  var c=classById(cid);
+  if (!c){ alert('กรุณาเลือกห้องเรียน'); return; }
+  var term=(c.system==='secondary')?document.getElementById('pp5-term').value:'year';
+  var list=rosterOf(cid);
+  if (!list.length){ alert('ยังไม่มีนักเรียนในห้องนี้'); return; }
+  REPORT_BACK='admin';
+  document.getElementById('report-selectors').innerHTML='';
+  document.getElementById('btn-sig-arrange').style.display='none';
+  document.getElementById('btn-sig-save').style.display='none';
+  document.getElementById('report-paper').innerHTML=buildPp5Summary(c, term, list);
+  go('student-result');
+}
+function countGender(list, g){ var n=0; for (var i=0;i<list.length;i++) if((list[i].gender||'ชาย')===g) n++; return n; }
+function buildPp5Summary(c, term, list){
+  var isSec=(c.system==='secondary');
+  var subs=SUBJECTS[c.system]||[];
+  var termLabel=isSec?('ภาคเรียนที่ '+term+'  '):'';
+
+  /* ตารางนับเกรดต่อวิชา */
+  var gHead='<tr><th class="subj-col">รหัสวิชา</th><th class="subj-col">รายวิชา</th>';
+  for (var g=0;g<GRADE_SCALE.length;g++) gHead+='<th>'+GRADE_SCALE[g]+'</th>';
+  gHead+='</tr>';
+  var gRows='';
+  for (var i=0;i<subs.length;i++){
+    var cnt=[0,0,0,0,0,0,0,0];
+    for (var j=0;j<list.length;j++){
+      var gr=gradeOfCtx(list[j], term, subs[i].code, c.system);
+      for (var k=0;k<GRADE_SCALE.length;k++){ if (gr===GRADE_SCALE[k]){ cnt[k]++; break; } }
+    }
+    var cells='';
+    for (var m=0;m<cnt.length;m++) cells+='<td>'+(cnt[m]||'')+'</td>';
+    gRows+='<tr><td class="subj-col">'+subs[i].code+'</td><td class="subj-col">'+subs[i].name+'</td>'+cells+'</tr>';
+  }
+  var gradesTable='<table><thead>'+gHead+'</thead><tbody>'+gRows+'</tbody></table>';
+
+  /* ตารางนับผลการประเมิน */
+  function countAssess(field){
+    var lv={'ดีเยี่ยม':0,'ดี':0,'ผ่าน':0,'ไม่ผ่าน':0};
+    for (var a=0;a<list.length;a++){ var v=assessOf(list[a],term)[field]; if(v&&lv.hasOwnProperty(v)) lv[v]++; }
+    return lv;
+  }
+  function assessRow(label, field){
+    var lv=countAssess(field);
+    return '<tr><td class="k" style="text-align:left">'+label+'</td><td>'+(lv['ดีเยี่ยม']||'')+'</td><td>'+(lv['ดี']||'')+'</td><td>'+(lv['ผ่าน']||'')+'</td><td>'+(lv['ไม่ผ่าน']||'')+'</td></tr>';
+  }
+  var actPass=0, actFail=0;
+  for (var b=0;b<list.length;b++){ var su=activitySummary(activitiesOf(list[b],term)); if(su==='ผ่าน') actPass++; else if(su==='ไม่ผ่าน') actFail++; }
+  var assessTable='<table><thead><tr><th class="k" style="text-align:left">ผลการประเมิน</th><th>ดีเยี่ยม</th><th>ดี</th><th>ผ่าน</th><th>ไม่ผ่าน</th></tr></thead><tbody>'
+    +assessRow('คุณลักษณะอันพึงประสงค์','char')
+    +assessRow('การอ่าน คิดวิเคราะห์ และเขียน','read')
+    +assessRow('สมรรถนะสำคัญของผู้เรียน','comp')
+    +'<tr><td class="k" style="text-align:left">กิจกรรมพัฒนาผู้เรียน</td><td colspan="2">ผ่าน '+actPass+'</td><td colspan="2">ไม่ผ่าน '+actFail+'</td></tr>'
+    +'</tbody></table>';
+
+  /* ตารางอนุมัติผลการเรียน (ชาย/หญิง/รวม) */
+  var m2=countGender(list,'ชาย'), f2=countGender(list,'หญิง'), tot=list.length;
+  function appRow(label, ch, fe){ return '<tr><td class="k" style="text-align:left">'+label+'</td><td>'+ch+'</td><td>'+fe+'</td><td>'+(ch+fe)+'</td></tr>'; }
+  var approveTable='<table><thead><tr><th class="k" style="text-align:left">การอนุมัติผลการเรียน</th><th>ชาย</th><th>หญิง</th><th>รวม</th></tr></thead><tbody>'
+    +appRow('จำนวนนักเรียนในบัญชี', m2, f2)
+    +appRow('นักเรียนที่เข้าระหว่างปี', 0, 0)
+    +appRow('นักเรียนที่ออกระหว่างปี', 0, 0)
+    +appRow('ตัดสินให้เลื่อนชั้น/จบ', m2, f2)
+    +'</tbody></table>';
+
+  /* ลายเซ็น 5 ตำแหน่ง */
+  function p5sign(role){
+    var s=(SIGNATURES&&SIGNATURES[role])||{};
+    var nm=s.name?'( '+s.name+' )':'( ................................ )';
+    return '<div class="pp5-sign"><div>ลงชื่อ ..........................................</div><div>'+nm+'</div><div>'+(s.position||'')+'</div></div>';
+  }
+  var signs='<div class="pp5-signs">'+p5sign('teacher1')+p5sign('teacher2')+p5sign('deputy')+p5sign('academic')+'</div>'
+    +'<div class="pp5-approve-line">อนุมัติผลการเรียน เมื่อวันที่ ........ เดือน ............................ พ.ศ. ............</div>'
+    +'<div class="pp5-signs" style="justify-content:center;margin-top:8px">'+p5sign('director')+'</div>';
+
+  var head='<div class="pp5-head">'
+    +'<img src="https://img2.pic.in.th/pic/Logo-7aecb8e321ff2955.png" alt="ตราโรงเรียน" />'
+    +'<div class="pp5-title">สมุดบันทึกการพัฒนาคุณภาพผู้เรียน (ปพ.5)</div>'
+    +'<div class="pp5-meta">'+SCHOOL.name+' '+SCHOOL.area+'</div>'
+    +'<div class="pp5-meta">ชั้น '+c.level+'  '+termLabel+'ปีการศึกษา '+CURRENT_YEAR+'</div></div>';
+
+  return '<div class="pp5">'+head
+    +'<div class="pp5-row"><div class="pp5-grades">'+gradesTable+'</div>'
+    +'<div class="pp5-side">'+assessTable+approveTable+'</div></div>'
+    +signs+'</div>';
 }
 
 /* ============================================================
