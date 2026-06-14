@@ -200,6 +200,16 @@
   .modal-body { padding:20px 24px; }
   .modal-foot { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
 
+  .sig-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+  .sig-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; }
+  .sig-card h4 { font-family:'Kanit',sans-serif; margin:0 0 12px; color:var(--ink); font-size:15px; }
+  .sig-card input[type=text] { width:100%; padding:9px 11px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-family:'Sarabun',sans-serif; font-size:14px; }
+  .sig-card input[type=text]:focus { border-color:var(--primary); outline:none; box-shadow:0 0 0 3px var(--primary-soft); }
+  .sig-preview { height:80px; border:1px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:#FAFBFC; overflow:hidden; }
+  .sig-preview img { max-height:74px; max-width:100%; }
+  .sig-preview span { color:var(--muted); font-size:13px; }
+  .sig-card input[type=file] { width:100%; font-size:13px; }
+
   footer.app-foot { text-align: center; padding: 18px; font-size: 13px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
   .pub-foot { background: var(--ink); color: rgba(255,255,255,.6); text-align: center; padding: 20px; font-size: 13px; }
 
@@ -372,6 +382,7 @@
         <a class="nav-link" data-pane="pp5" onclick="showPane('pp5', this)"><i class="ti ti-clipboard-text"></i> บันทึก ปพ.5</a>
         <a class="nav-link" data-pane="pp6" onclick="showPane('pp6', this)"><i class="ti ti-file-certificate"></i> ออก ปพ.6</a>
         <a class="nav-link" data-pane="assess" onclick="showPane('assess', this)"><i class="ti ti-checkup-list"></i> ประเมินคุณลักษณะ</a>
+        <a class="nav-link" data-pane="signatures" onclick="showPane('signatures', this)"><i class="ti ti-signature"></i> ตั้งค่าลายเซ็น</a>
         <a class="nav-link" data-pane="theme" onclick="showPane('theme', this)"><i class="ti ti-palette"></i> ตั้งค่าโทนสี</a>
         <a class="nav-link" data-pane="developer" onclick="showPane('developer', this)"><i class="ti ti-code"></i> ผู้พัฒนา</a>
       </nav>
@@ -457,6 +468,13 @@
             <div class="panel-head"><h3 id="as-title">ผลการประเมิน</h3><span class="pill pill-ok">4 ระดับ: ดีเยี่ยม / ดี / ผ่าน / ไม่ผ่าน</span></div>
             <div class="panel-body"><div id="as-table"></div></div>
           </div>
+        </section>
+
+        <!-- ตั้งค่าลายเซ็น -->
+        <section class="pane" id="pane-signatures">
+          <div class="page-title"><div><h2>ตั้งค่าลายเซ็น</h2><p>ชื่อ ตำแหน่ง และรูปลายเซ็นสำหรับแสดงบนเอกสาร ปพ.5 / ปพ.6</p></div>
+            <button class="btn btn-primary" onclick="saveSignatures()"><i class="ti ti-device-floppy"></i> บันทึกทั้งหมด</button></div>
+          <div class="sig-grid" id="sig-grid"></div>
         </section>
 
         <!-- ตั้งค่าโทนสี -->
@@ -1000,6 +1018,7 @@ function initAdmin() {
   document.getElementById('pp5-class').innerHTML=classOptions('m1-1');
   document.getElementById('pp6-class').innerHTML=classOptions('m1-1');
   document.getElementById('as-class').innerHTML=classOptions('m1-1');
+  loadSettings();
   refreshAdmin();
   renderSwatches(); renderThemeMenu();
 }
@@ -1374,6 +1393,74 @@ function reloadSubjects() {
   });
 }
 
+/* ---- ตั้งค่าลายเซ็น (เก็บรูปแบบ base64 ย่อขนาดใน Firestore) ---- */
+var SIG_ROLES=[
+  {key:'teacher1', label:'ครูประจำชั้น คนที่ 1', defPos:'ครูประจำชั้น'},
+  {key:'teacher2', label:'ครูประจำชั้น คนที่ 2', defPos:'ครูประจำชั้น'},
+  {key:'academic', label:'หัวหน้างานวิชาการ', defPos:'หัวหน้างานวิชาการ'},
+  {key:'deputy',   label:'รองผู้อำนวยการ', defPos:'รองผู้อำนวยการโรงเรียน'},
+  {key:'director', label:'ผู้อำนวยการ', defPos:'ผู้อำนวยการโรงเรียน'}
+];
+var SIGNATURES={};
+function renderSignatures() {
+  var html="";
+  for (var i=0;i<SIG_ROLES.length;i++){
+    var r=SIG_ROLES[i], s=SIGNATURES[r.key]||{};
+    var prev = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" />' : '<span>ยังไม่มีรูปลายเซ็น</span>';
+    html+='<div class="sig-card"><h4>'+r.label+'</h4>'
+      +'<input type="text" id="sig-'+r.key+'-name" placeholder="ชื่อ-สกุล" value="'+(s.name||'')+'" />'
+      +'<input type="text" id="sig-'+r.key+'-pos" placeholder="ตำแหน่ง" value="'+(s.position||r.defPos)+'" />'
+      +'<div class="sig-preview" id="sig-'+r.key+'-preview">'+prev+'</div>'
+      +'<input type="file" accept="image/*" onchange="onSigUpload(\''+r.key+'\', this)" /></div>';
+  }
+  document.getElementById('sig-grid').innerHTML=html;
+}
+function onSigUpload(key, input) {
+  if (!input.files || !input.files[0]) return;
+  resizeImage(input.files[0], 400, function(dataUrl){
+    if (!SIGNATURES[key]) SIGNATURES[key]={};
+    SIGNATURES[key].img=dataUrl;
+    document.getElementById('sig-'+key+'-preview').innerHTML='<img src="'+dataUrl+'" alt="ลายเซ็น" />';
+  });
+}
+function resizeImage(file, maxW, cb) {
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var scale=Math.min(1, maxW/img.width);
+      var w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      var canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      cb(canvas.toDataURL('image/png'));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function saveSignatures() {
+  if (!window.fbSaveSettings){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  var data={};
+  for (var i=0;i<SIG_ROLES.length;i++){
+    var key=SIG_ROLES[i].key, old=SIGNATURES[key]||{};
+    data[key]={
+      name: (document.getElementById('sig-'+key+'-name').value||'').trim(),
+      position: (document.getElementById('sig-'+key+'-pos').value||'').trim(),
+      img: old.img||''
+    };
+  }
+  window.fbSaveSettings('signatures', data)
+    .then(function(){ SIGNATURES=data; alert('บันทึกลายเซ็นเรียบร้อยแล้ว'); })
+    .catch(function(e){ alert('บันทึกไม่สำเร็จ: '+e.message); });
+}
+function loadSettings() {
+  if (!window.fbLoadSettings) { renderSignatures(); return; }
+  window.fbLoadSettings('signatures').then(function(data){
+    SIGNATURES=data||{};
+    renderSignatures();
+  }).catch(function(){ renderSignatures(); });
+}
+
 function renderPp6() {
   var cid=document.getElementById('pp6-class').value;
   var c=classById(cid);
@@ -1535,6 +1622,13 @@ document.addEventListener('click', function(e){
     return snap.exists() ? snap.data() : null;
   };
   window.fbSaveReportCard = function(hash, data){ return setDoc(doc(db, "report_cards", hash), data); };
+
+  /* การตั้งค่าระบบ (collection: settings) เช่น ลายเซ็น */
+  window.fbLoadSettings = async function(id){
+    const snap = await getDoc(doc(db, "settings", id));
+    return snap.exists() ? snap.data() : null;
+  };
+  window.fbSaveSettings = function(id, data){ return setDoc(doc(db, "settings", id), data); };
 </script>
 </body>
 </html>
