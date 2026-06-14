@@ -201,7 +201,7 @@
   .modal-foot { padding:16px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
 
   /* เอกสาร ปพ.6 แบบราชการ จบ 1 หน้า */
-  .pp6 { font-family:'Sarabun',sans-serif; color:#1a1a1a; font-size:12.5px; line-height:1.35; padding:22px 26px; background:#fff; position:relative; min-height:1000px; }
+  .pp6 { font-family:'Sarabun',sans-serif; color:#1a1a1a; font-size:12.5px; line-height:1.35; padding:22px 26px; background:#fff; }
   .pp6-head { text-align:center; position:relative; min-height:64px; }
   .pp6-head img { position:absolute; left:4px; top:0; width:60px; height:60px; object-fit:contain; }
   .pp6-title { font-family:'Kanit',sans-serif; font-weight:600; font-size:15px; }
@@ -214,10 +214,11 @@
   .pp6-sec-row td { background:#f4f4f4; font-weight:600; text-align:center; font-family:'Kanit',sans-serif; }
   .pp6-bottom { display:flex; gap:16px; margin-top:12px; align-items:flex-start; }
   .pp6-summary { flex:1.05; }
-  .pp6-sign-abs { position:absolute; text-align:center; font-size:11.5px; line-height:1.5; width:240px; margin-left:-120px; }
-  .pp6-sign-abs .line { min-height:34px; display:flex; align-items:flex-end; justify-content:center; overflow:visible; }
-  .pp6-sign-abs .line img { display:block; }
-  .pp6-sign-abs.editing { cursor:move; outline:2px dashed var(--primary); outline-offset:4px; border-radius:6px; background:rgba(36,92,140,.05); }
+  .pp6-signs { flex:1; display:flex; flex-direction:column; gap:10px; padding-top:4px; }
+  .pp6-sign { text-align:center; font-size:11.5px; line-height:1.5; }
+  .pp6-sign .line { min-height:34px; display:flex; align-items:flex-end; justify-content:center; overflow:visible; }
+  .pp6-sign .line img { display:block; }
+  .pp6-sign .line img.sig-editing { cursor:move; outline:2px dashed var(--primary); outline-offset:2px; border-radius:4px; }
   .pp6-summary table { width:100%; border-collapse:collapse; }
   .pp6-summary th, .pp6-summary td { border:1px solid #888; padding:2.5px 6px; font-size:11px; }
   .pp6-summary th { background:#eee; font-family:'Kanit',sans-serif; font-weight:500; text-align:left; }
@@ -819,30 +820,29 @@ function toggleSigEdit(){
   applySigEdit();
 }
 function applySigEdit(){
-  var nodes=document.querySelectorAll('#report-paper .pp6-sign-abs');
-  for (var i=0;i<nodes.length;i++){
-    var el=nodes[i];
-    if (SIG_EDIT){ el.classList.add('editing'); attachSigDrag(el); }
-    else { el.classList.remove('editing'); }
+  var imgs=document.querySelectorAll('#report-paper img.sig-img');
+  for (var i=0;i<imgs.length;i++){
+    var el=imgs[i];
+    if (SIG_EDIT){ el.classList.add('sig-editing'); attachSigDrag(el); }
+    else { el.classList.remove('sig-editing'); }
   }
 }
-function attachSigDrag(el){
-  if (el._dragBound) return; el._dragBound=true;
+function attachSigDrag(img){
+  if (img._dragBound) return; img._dragBound=true;
   function down(e){
     if (!SIG_EDIT) return;
     e.preventDefault();
-    var paper=el.parentNode; /* .pp6 */
+    var key=img.getAttribute('data-key');
+    if(!SIGNATURES[key]) SIGNATURES[key]={};
+    var s=SIGNATURES[key];
     var pt=(e.touches&&e.touches[0])||e;
+    var startX=pt.clientX, startY=pt.clientY;
+    var baseDx=s.dx||0, baseDy=s.dy||0;
     function move(ev){
       var p=(ev.touches&&ev.touches[0])||ev;
-      var rect=paper.getBoundingClientRect();
-      var px=((p.clientX-rect.left)/rect.width)*100;
-      var py=((p.clientY-rect.top)/rect.height)*100;
-      px=Math.max(0,Math.min(100,px)); py=Math.max(0,Math.min(100,py));
-      el.style.left=px+'%'; el.style.top=py+'%';
-      var key=el.getAttribute('data-key');
-      if(!SIGNATURES[key]) SIGNATURES[key]={};
-      SIGNATURES[key].px=Math.round(px*10)/10; SIGNATURES[key].py=Math.round(py*10)/10;
+      s.dx=baseDx+(p.clientX-startX);
+      s.dy=baseDy+(p.clientY-startY);
+      img.style.cssText=sigImgStyle(s);
     }
     function up(){
       document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up);
@@ -851,8 +851,8 @@ function attachSigDrag(el){
     document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
     document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',up);
   }
-  el.addEventListener('mousedown',down);
-  el.addEventListener('touchstart',down,{passive:false});
+  img.addEventListener('mousedown',down);
+  img.addEventListener('touchstart',down,{passive:false});
 }
 function saveSigPositions(){
   if (!window.fbSaveSettings){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
@@ -1027,17 +1027,11 @@ function pp6ActivityRows(isSec){
   }
   return r;
 }
-/* ตำแหน่งเริ่มต้นของลายเซ็น (% ของหน้าเอกสาร) หากยังไม่เคยจัดวาง */
-var SIG_DEFAULT_POS=[ {px:56,py:62}, {px:56,py:76}, {px:56,py:90} ];
-function signAbsBlock(role, idx){
+function signBlock(role){
   var s=(SIGNATURES&&SIGNATURES[role])||{};
-  if (!s.img && !s.name) return '';   /* ไม่มีข้อมูล ไม่ต้องแสดง */
-  var pos=SIG_DEFAULT_POS[idx]||{px:56,py:80};
-  var px=(s.px!=null)?s.px:pos.px, py=(s.py!=null)?s.py:pos.py;
-  var img = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" style="'+sigImgStyle(s)+'" />' : '';
+  var img = s.img ? '<img src="'+s.img+'" alt="ลายเซ็น" class="sig-img" data-key="'+role+'" style="'+sigImgStyle(s)+'" />' : '';
   var name = s.name ? '( '+s.name+' )' : '( ................................ )';
-  return '<div class="pp6-sign-abs" data-key="'+role+'" style="left:'+px+'%;top:'+py+'%">'
-    +'<div class="line">'+img+'</div>'
+  return '<div class="pp6-sign"><div class="line">'+img+'</div>'
     +'<div>ลงชื่อ ..........................................</div>'
     +'<div>'+name+'</div><div>'+(s.position||'')+'</div></div>';
 }
@@ -1082,9 +1076,9 @@ function buildPp6Html(ctx){
     +'<tr><td>สมรรถนะสำคัญของผู้เรียน</td><td class="c" colspan="2">'+(a.comp||'-')+'</td></tr>'
     +'<tr><td>การเข้าร่วมกิจกรรมพัฒนาผู้เรียน</td><td class="c" colspan="2">ผ่าน</td></tr>';
   var summary='<div class="pp6-summary"><table><thead><tr><th>สรุปผลการประเมิน</th><th class="c">เรียน</th><th class="c">ได้</th></tr></thead><tbody>'+sumRows+'</tbody></table></div>';
-  var signs=signAbsBlock('teacher1',0)+signAbsBlock('teacher2',1)+signAbsBlock('director',2);
+  var signs='<div class="pp6-signs">'+signBlock('teacher1')+signBlock('teacher2')+signBlock('director')+'</div>';
 
-  return '<div class="pp6">'+head+table+'<div class="pp6-bottom">'+summary+'</div>'+signs+'</div>';
+  return '<div class="pp6">'+head+table+'<div class="pp6-bottom">'+summary+signs+'</div></div>';
 }
 
 /* ============================================================
