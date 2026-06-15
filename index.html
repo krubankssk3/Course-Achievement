@@ -237,6 +237,10 @@
   .msg-actions textarea { width:100%; resize:vertical; }
   .msg-btns { display:flex; gap:8px; }
   .pill-new { background:#FDECEC; color:#C0392B; }
+  .owner-checklist { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; max-height:180px; overflow-y:auto; }
+  .owner-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; cursor:pointer; }
+  .owner-row:hover { background:var(--primary-soft); }
+  .owner-row input { width:16px; height:16px; cursor:pointer; }
   .track-msg { margin-top:12px; font-size:14px; color:var(--muted); }
   .track-err { color:#C0392B; }
   .track-card { margin-top:14px; }
@@ -700,7 +704,11 @@
           <div class="field"><label>ชื่อห้อง</label><input id="cls-name" type="text" placeholder="เช่น ม.2/1" /></div>
           <div class="field"><label>ระดับชั้น (ชื่อเต็ม)</label><input id="cls-level" type="text" placeholder="เช่น มัธยมศึกษาปีที่ 2/1" /></div>
           <div class="field"><label>รูปแบบการเก็บผล</label><select id="cls-system"><option value="secondary">มัธยม (แยกภาคเรียน + หน่วยกิต)</option><option value="primary">ประถม (ผลการเรียนทั้งปี)</option></select></div>
-          <div class="field"><label>อีเมลครูที่ดูแลห้องนี้ (คั่นหลายคนด้วยลูกน้ำ ,)</label><input id="cls-owners" type="text" placeholder="teacher1@gmail.com, teacher2@gmail.com" /><div class="hint">ครูที่ระบุอีเมลไว้จะเห็นและจัดการเฉพาะห้องนี้ ผู้ดูแลระบบเห็นทุกห้องเสมอ</div></div>
+          <div class="field"><label>ครูที่ดูแลห้องนี้</label>
+            <div id="cls-owners-list" class="owner-checklist"></div>
+            <input id="cls-owners" type="text" placeholder="หรือพิมพ์อีเมลเพิ่มเอง คั่นด้วย ," />
+            <div class="hint">ติ๊กเลือกจากครูที่ลงทะเบียนไว้ (กันพิมพ์ผิด) หรือพิมพ์อีเมลเพิ่มในช่องด้านล่าง · ผู้ดูแลระบบเห็นทุกห้องเสมอ</div>
+          </div>
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" onclick="closeClassModal()">ยกเลิก</button>
@@ -1800,16 +1808,40 @@ function openClassModal(mode, id) {
     document.getElementById('cls-name').value=c.name;
     document.getElementById('cls-level').value=c.level;
     document.getElementById('cls-system').value=c.system;
-    document.getElementById('cls-owners').value=(c.owners||[]).join(', ');
+    fillOwners(c.owners||[]);
   } else {
     document.getElementById('class-modal-title').textContent='เพิ่มห้องเรียน';
     idInput.value=''; idInput.disabled=false;
     document.getElementById('cls-name').value='';
     document.getElementById('cls-level').value='';
     document.getElementById('cls-system').value='secondary';
-    document.getElementById('cls-owners').value='';
+    fillOwners([]);
   }
   document.getElementById('class-modal').classList.add('open');
+}
+function renderOwnerChecklist(selected){
+  selected=selected||[];
+  var box=document.getElementById('cls-owners-list');
+  if (!TEACHERS.length){ box.innerHTML='<div class="hint" style="margin:0 0 8px">ยังไม่มีครูลงทะเบียน — พิมพ์อีเมลในช่องด้านล่างได้</div>'; return; }
+  var h='';
+  for (var i=0;i<TEACHERS.length;i++){
+    var em=TEACHERS[i].id, ck=(selected.indexOf(em)>=0)?' checked':'', bl=TEACHERS[i].blocked;
+    h+='<label class="owner-row"><input type="checkbox" class="owner-cb" value="'+em+'"'+ck+(bl?' disabled':'')+'> '+esc(em)+(bl?' <span style="color:#C0392B">(ถูกระงับ)</span>':'')+'</label>';
+  }
+  box.innerHTML=h;
+}
+function fillOwners(owners){
+  owners=owners||[];
+  function done(){
+    var known={}, unknown=[];
+    for (var i=0;i<TEACHERS.length;i++) known[TEACHERS[i].id]=true;
+    for (var j=0;j<owners.length;j++){ if(!known[owners[j]]) unknown.push(owners[j]); }
+    renderOwnerChecklist(owners);
+    document.getElementById('cls-owners').value=unknown.join(', ');
+  }
+  if (TEACHERS.length) done();
+  else if (window.fbLoadTeachers) window.fbLoadTeachers().then(function(arr){ TEACHERS=arr||[]; done(); }).catch(done);
+  else done();
 }
 function closeClassModal() { document.getElementById('class-modal').classList.remove('open'); }
 function saveClass() {
@@ -1817,11 +1849,13 @@ function saveClass() {
   var name=document.getElementById('cls-name').value.trim();
   var level=document.getElementById('cls-level').value.trim();
   var system=document.getElementById('cls-system').value;
-  var ownersRaw=document.getElementById('cls-owners').value.trim();
   var owners=[];
+  var cbs=document.querySelectorAll('#cls-owners-list .owner-cb:checked');
+  for (var i=0;i<cbs.length;i++){ owners.push(cbs[i].value.toLowerCase()); }
+  var ownersRaw=document.getElementById('cls-owners').value.trim();
   if (ownersRaw){
     var parts=ownersRaw.split(',');
-    for (var i=0;i<parts.length;i++){ var e=parts[i].trim().toLowerCase(); if(e) owners.push(e); }
+    for (var k=0;k<parts.length;k++){ var e=parts[k].trim().toLowerCase(); if(e && owners.indexOf(e)<0) owners.push(e); }
   }
   var alert=document.getElementById('class-modal-alert');
   if (!id || !name || !level) { alert.textContent='กรุณากรอกข้อมูลให้ครบทุกช่อง'; alert.classList.add('show'); return; }
