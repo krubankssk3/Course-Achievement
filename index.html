@@ -681,6 +681,10 @@
             <div class="panel-head"><h3>กล่องข้อความจากผู้ใช้</h3><button class="btn btn-ghost" style="padding:8px 14px;font-size:14px" onclick="loadMessages()"><i class="ti ti-refresh"></i> รีเฟรช</button></div>
             <div class="panel-body"><div id="msg-list"><div class="empty"><i class="ti ti-inbox"></i><p>ยังไม่ได้โหลดข้อความ</p></div></div></div>
           </div>
+          <div class="panel">
+            <div class="panel-head"><h3>จัดการบัญชีครู</h3><button class="btn btn-ghost" style="padding:8px 14px;font-size:14px" onclick="loadTeachers()"><i class="ti ti-refresh"></i> รีเฟรช</button></div>
+            <div class="panel-body"><div id="teacher-list"><div class="empty"><i class="ti ti-users"></i><p>ยังไม่ได้โหลดรายชื่อครู</p></div></div></div>
+          </div>
         </section>
 
       </main>
@@ -1209,6 +1213,73 @@ function deleteMessage(id){
   if(!confirm('ลบข้อความนี้?')) return;
   window.fbDeleteMessage(id).then(function(){ loadMessages(); }).catch(function(e){ alert('ลบไม่สำเร็จ: '+e.message); });
 }
+/* ===== จัดการบัญชีครู (เฉพาะผู้ดูแล) ===== */
+var TEACHERS=[];
+function loadTeachers(){
+  if(!window.fbLoadTeachers){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  document.getElementById('teacher-list').innerHTML='<div class="empty"><i class="ti ti-loader"></i><p>กำลังโหลด...</p></div>';
+  window.fbLoadTeachers().then(function(arr){
+    TEACHERS=(arr||[]).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    renderTeachers();
+  }).catch(function(e){ document.getElementById('teacher-list').innerHTML='<div class="empty"><i class="ti ti-alert-triangle"></i><p>โหลดไม่สำเร็จ: '+esc(e.message)+'</p></div>'; });
+}
+function teacherClassNames(email){
+  var names=[];
+  for (var i=0;i<ALL_CLASSES.length;i++){ if(ALL_CLASSES[i].owners && ALL_CLASSES[i].owners.indexOf(email)>=0) names.push(ALL_CLASSES[i].name); }
+  return names;
+}
+function renderTeachers(){
+  if(!TEACHERS.length){ document.getElementById('teacher-list').innerHTML='<div class="empty"><i class="ti ti-users"></i><p>ยังไม่มีครูสมัครเข้ามา</p></div>'; return; }
+  var html='';
+  for (var i=0;i<TEACHERS.length;i++){
+    var t=TEACHERS[i];
+    var rooms=teacherClassNames(t.id);
+    var roomTxt = rooms.length ? rooms.join(', ') : '— ยังไม่ได้รับมอบหมายห้อง —';
+    var badge = t.blocked ? '<span class="pill pill-new">ถูกระงับ</span>' : '<span class="pill pill-ok">ใช้งานได้</span>';
+    var blockBtn = t.blocked
+      ? '<button class="btn btn-ghost" style="padding:6px 11px;font-size:13px" onclick="unblockTeacher(\''+t.id+'\')"><i class="ti ti-lock-open"></i> ปลดระงับ</button>'
+      : '<button class="btn btn-ghost" style="padding:6px 11px;font-size:13px;color:#C0392B" onclick="blockTeacher(\''+t.id+'\')"><i class="ti ti-ban"></i> ระงับ</button>';
+    html+='<div class="msg-item"><div class="msg-top"><div class="msg-who"><strong>'+esc(t.id)+'</strong></div>'
+      +'<div class="msg-meta">'+badge+'</div></div>'
+      +'<div class="msg-text" style="font-size:13px;color:var(--muted)"><i class="ti ti-door"></i> ดูแล: '+esc(roomTxt)+'</div>'
+      +'<div class="msg-btns">'+blockBtn
+      +'<button class="btn btn-ghost" style="padding:6px 11px;font-size:13px" onclick="removeTeacher(\''+t.id+'\')"><i class="ti ti-trash"></i> ลบออกจากทะเบียน</button></div></div>';
+  }
+  document.getElementById('teacher-list').innerHTML=html;
+}
+function blockTeacher(email){
+  if(!confirm('ระงับบัญชี '+email+' ?\nบัญชีนี้จะเข้าสู่ระบบไม่ได้อีก และจะถูกถอดออกจากทุกห้อง')) return;
+  if(!window.fbSetTeacherBlocked){ alert('ระบบยังโหลดไม่เสร็จ'); return; }
+  /* ระงับ + ถอดออกจากทุกห้อง */
+  window.fbSetTeacherBlocked(email, true).then(function(){
+    return removeEmailFromAllClasses(email);
+  }).then(function(){ alert('ระงับบัญชีเรียบร้อยแล้ว'); reloadClasses(); loadTeachers(); })
+    .catch(function(e){ alert('ดำเนินการไม่สำเร็จ: '+e.message); });
+}
+function unblockTeacher(email){
+  if(!window.fbSetTeacherBlocked){ return; }
+  window.fbSetTeacherBlocked(email, false).then(function(){ alert('ปลดระงับเรียบร้อยแล้ว'); loadTeachers(); })
+    .catch(function(e){ alert('ดำเนินการไม่สำเร็จ: '+e.message); });
+}
+function removeTeacher(email){
+  if(!confirm('ลบ '+email+' ออกจากทะเบียนครู?\n(บัญชีใน Firebase ยังอยู่ หากต้องการลบถาวรให้ลบใน Firebase Console)')) return;
+  if(!window.fbRemoveTeacher){ return; }
+  window.fbRemoveTeacher(email).then(function(){ return removeEmailFromAllClasses(email); })
+    .then(function(){ reloadClasses(); loadTeachers(); })
+    .catch(function(e){ alert('ลบไม่สำเร็จ: '+e.message); });
+}
+/* ถอดอีเมลออกจากทุกห้องที่ดูแล */
+function removeEmailFromAllClasses(email){
+  var jobs=[];
+  for (var i=0;i<ALL_CLASSES.length;i++){
+    var c=ALL_CLASSES[i];
+    if (c.owners && c.owners.indexOf(email)>=0){
+      var newOwners=c.owners.filter(function(e){ return e!==email; });
+      jobs.push(window.fbAddClass(c.id, { name:c.name, level:c.level, system:c.system, owners:newOwners }));
+    }
+  }
+  return Promise.all(jobs);
+}
 
 /* ============================================================
    นักเรียนล็อกอิน + รายงาน ปพ.6
@@ -1534,6 +1605,7 @@ function adminSignup(){
   window.fbSignUp(email, pass).then(function(){
     CURRENT_EMAIL=(email||'').toLowerCase();
     IS_ADMIN=(CURRENT_EMAIL===SUPER_ADMIN.toLowerCase());
+    if (window.fbRegisterTeacher && !IS_ADMIN) window.fbRegisterTeacher(CURRENT_EMAIL).catch(function(){});
     applyClassScope();
     btn.innerHTML='<i class="ti ti-check"></i> สมัครสำเร็จ';
     setTimeout(function(){ AUTH_MODE='login'; applyRole(); initAdmin(); loadAllData(); go('admin'); reset(); }, 500);
@@ -1561,11 +1633,22 @@ function adminLogin() {
     CURRENT_EMAIL = (window.fbCurrentEmail && window.fbCurrentEmail()) || email;
     CURRENT_EMAIL = (CURRENT_EMAIL||'').toLowerCase();
     IS_ADMIN = (CURRENT_EMAIL===SUPER_ADMIN.toLowerCase());
-    applyClassScope();
-    btn.innerHTML='<i class="ti ti-check"></i> เข้าสู่ระบบสำเร็จ';
-    setTimeout(function(){
-      alert.classList.remove('show'); applyRole(); initAdmin(); loadAllData(); go('admin'); reset();
-    }, 450);
+    /* ตรวจสอบบัญชีถูกระงับ (ยกเว้นผู้ดูแลระบบ) */
+    var checkBlock = (!IS_ADMIN && window.fbCheckBlocked) ? window.fbCheckBlocked(CURRENT_EMAIL) : Promise.resolve(false);
+    checkBlock.then(function(blocked){
+      if (blocked){
+        if (window.fbSignOut) window.fbSignOut();
+        CURRENT_EMAIL=null; IS_ADMIN=false;
+        reset();
+        alert.textContent='บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ'; alert.classList.add('show');
+        return;
+      }
+      applyClassScope();
+      btn.innerHTML='<i class="ti ti-check"></i> เข้าสู่ระบบสำเร็จ';
+      setTimeout(function(){
+        alert.classList.remove('show'); applyRole(); initAdmin(); loadAllData(); go('admin'); reset();
+      }, 450);
+    });
   }).catch(function(err){
     reset();
     alert.textContent='อีเมลหรือรหัสผ่านไม่ถูกต้อง'; alert.classList.add('show');
@@ -1589,7 +1672,7 @@ function showPane(name, el) {
   var links=document.querySelectorAll('.side .nav-link');
   for (var j=0;j<links.length;j++) links[j].classList.remove('active');
   if (el) el.classList.add('active');
-  if (name==='developer'){ fillDeveloperForm(); loadMessages(); }
+  if (name==='developer'){ fillDeveloperForm(); loadMessages(); loadTeachers(); }
 }
 function classOptions(sel) {
   var o="";
@@ -2535,6 +2618,27 @@ document.addEventListener('click', function(e){
   window.fbSignOut = function(){ return signOut(auth); };
   window.fbCurrentEmail = function(){ return auth.currentUser ? auth.currentUser.email : null; };
   window.fbSignUp = function(email, pass){ return createUserWithEmailAndPassword(auth, email, pass); };
+
+  /* ทะเบียนครู (collection: teachers) — doc id = อีเมล (lowercase) */
+  window.fbRegisterTeacher = function(email){
+    const e=(email||'').toLowerCase();
+    return setDoc(doc(db, "teachers", e), { email:e, createdAt:Date.now(), blocked:false }, { merge:true });
+  };
+  window.fbLoadTeachers = function(){
+    return getDocs(collection(db, "teachers")).then(function(snap){
+      const arr=[]; snap.forEach(function(d){ const v=d.data(); v.id=d.id; arr.push(v); }); return arr;
+    });
+  };
+  window.fbSetTeacherBlocked = function(email, blocked){
+    return updateDoc(doc(db, "teachers", (email||'').toLowerCase()), { blocked:blocked });
+  };
+  window.fbRemoveTeacher = function(email){
+    return deleteDoc(doc(db, "teachers", (email||'').toLowerCase()));
+  };
+  window.fbCheckBlocked = async function(email){
+    const snap=await getDoc(doc(db, "teachers", (email||'').toLowerCase()));
+    return snap.exists() ? !!snap.data().blocked : false;
+  };
   window.fbChangePassword = function(newPass){
     if (!auth.currentUser) return Promise.reject(new Error('ยังไม่ได้เข้าสู่ระบบ'));
     return updatePassword(auth.currentUser, newPass);
